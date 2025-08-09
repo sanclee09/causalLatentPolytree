@@ -775,6 +775,18 @@ We adapt the recovery pipeline of \citet{etesami:kiyavash:coleman:2016} to our c
 \end{algorithmic}
 \end{algorithm}
 
+Algorithm~\ref{alg:polytree} presents the main algorithm for learning the polytree $\vec{T}(V, \vec{E})$ with the root set $R$ given the discrepancy matrix $\Gamma_O$ on its observed nodes $O$. First, it calls the subroutine Separation($\Gamma_O$), which finds subsets $O_i$s, where $O = \cup_i O_i$ such that each subset corresponds to observed nodes in a directed tree with a single root. Each of these single rooted subtrees can be learned by Algorithm~\ref{alg:tree}. To complete the task, Algorithm~\ref{alg:polytree} must connect these subtrees to recover the original polytree. This is done by using the fact that if a polytree $\vec{T}$ and a directed tree $\vec{T}_i$ have an intersection, their common subgraph is also a tree; thus, it can be learned using Algorithm~\ref{alg:tree}.
+
+\paragraph{Algorithm Description.}
+The \textsc{Separation} algorithm operates on a given discrepancy matrix $\Gamma_O$ of the observed nodes. The aim of this partition is to obtain the set of vertices $O$ into subsets $O_1, O_2, \ldots, O_{|R|}$, where $|R|$ is the total number of subsets corresponding to different roots. Each subset satisfies a specific compatibility condition $\gamma(u, w) \geq 0$ for all pairs within the subset.
+
+The algorithm starts with an empty set $M$ to track the processed vertices, and a counter $i$ set to 1 to keep track of the number of subsets generated. In the main loop, as long as there are unprocessed vertices in $O$, the algorithm picks an arbitrary vertex $v$ from the unprocessed set $O \setminus M$. It then identifies all possible subsets $C \subseteq O$ such that $v \in C$ and for all $(u,w) \in C \times C$, we have $\gamma(u,w) \geq 0$. The maximal such subset becomes $O_i$, ensuring that nodes sharing a common root ancestor are grouped together.
+
+The \textsc{Tree} algorithm provides a method for constructing a directed tree from a set of nodes using the discrepancy measure. Initially, the algorithm computes for each vertex $v \in O$ the set $B_v$ of best neighbors, defined as those vertices $u \in O \setminus \{v\}$ that minimize $\gamma(v,u)$. The algorithm then checks if the tree can be simplified to a star graph structure. If all nodes satisfy $B_v = O \setminus \{v\}$, it determines whether there exists a node $w \in O$ such that $\min_{u \in O \setminus \{w\}} \gamma(w,u) = 0$. If such a node exists, the tree is constructed as a star graph with $w$ as the root. Otherwise, the tree is built as a star graph with a hidden root.
+
+If the star graph condition is not met, the algorithm proceeds with recursive tree construction. It selects a node $w$ such that $B_w \neq O \setminus \{w\}$ and recursively constructs subtrees. The process involves substituting nodes and merging trees using the tree merger operation to ensure that the hierarchical relationships between nodes are properly captured.
+
+
 \subsection{Adaptation to Cumulant Discrepancy}
 
 In our setting, we adapt these algorithms to work with our cumulant-based discrepancy measure from Definition~\ref{def:discrepancy}. The key modification lies in verifying that our measure satisfies the four axioms of Definition~\ref{def:discrepancy_paper1}, which we established through our computational examples.
