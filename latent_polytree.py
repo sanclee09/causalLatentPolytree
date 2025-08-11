@@ -255,7 +255,6 @@ def polytree(gamma: np.ndarray) -> LatentTree:
         if len(group_nodes) == 0:
             return LatentTree()
 
-        idx_mapping = {node: i for i, node in enumerate(group_nodes)}
         gamma_sub = np.zeros((len(group_nodes), len(group_nodes)))
         for i, node_i in enumerate(group_nodes):
             for j, node_j in enumerate(group_nodes):
