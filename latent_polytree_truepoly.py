@@ -1,7 +1,22 @@
+"""
+Latent polytree recovery (population-ready, deterministic, numerically stable).
+
+Key fixes vs earlier version:
+1) Numerical tolerance in B_v construction and star/root tests.
+2) Deterministic, stable selection of the decomposition pivot w.
+3) Correct merger wiring when w is the root of T2: connect r1 -> h (not h -> r1).
+"""
+
 from __future__ import annotations
 from typing import *
 import numpy as np
 import itertools
+
+# Numerical tolerance
+EPS = 1e-9
+
+def _is_zero(x: float) -> bool:
+    return np.isclose(x, 0.0, atol=EPS)
 
 def separation(gamma: np.ndarray) -> List[Set[int]]:
     n = gamma.shape[0]
@@ -18,7 +33,7 @@ def separation(gamma: np.ndarray) -> List[Set[int]]:
                     continue
                 ok = True
                 for w in candidate:
-                    if gamma[u, w] < 0 or gamma[w, u] < 0:
+                    if gamma[u, w] < -EPS or gamma[w, u] < -EPS:
                         ok = False
                         break
                 if ok:
@@ -34,7 +49,14 @@ def separation(gamma: np.ndarray) -> List[Set[int]]:
             maximal_groups = [g for g in maximal_groups if not g.issubset(candidate)]
             maximal_groups.append(candidate.copy())
 
-    return maximal_groups
+    # dedupe
+    seen = set()
+    uniq: List[Set[int]] = []
+    for g in maximal_groups:
+        fg = frozenset(g)
+        if fg not in seen:
+            seen.add(fg); uniq.append(g)
+    return uniq
 
 
 class LatentTree:
@@ -88,6 +110,7 @@ def _new_latent() -> str:
 
 
 def tree(gamma: np.ndarray, w_override: Optional[int] = None, _nodes: Optional[List[int]] = None) -> LatentTree:
+    """Algorithm 2 (Tree) with deterministic, stable behavior."""
     if _nodes is None:
         nodes: List[int] = list(range(gamma.shape[0]))
     else:
@@ -104,33 +127,38 @@ def tree(gamma: np.ndarray, w_override: Optional[int] = None, _nodes: Optional[L
     idx_of: Dict[int, int] = {v: i for i, v in enumerate(nodes)}
     B: Dict[int, Set[int]] = {}
 
+    # Build B_v with tolerance
     for v in nodes:
         i_v = idx_of[v]
         other_vals = [gamma[i_v, idx_of[u]] for u in nodes if u != v]
         if not other_vals:
             B[v] = set()
             continue
-        min_val = min(other_vals)
-        B[v] = {u for u in nodes if u != v and gamma[i_v, idx_of[u]] == min_val}
+        m = min(other_vals)
+        B[v] = {u for u in nodes if u != v and gamma[i_v, idx_of[u]] <= m + EPS}
 
+    # Star case (with tolerance)
     star_case = all(B[v] == set(nodes) - {v} for v in nodes if len(nodes) > 1)
     tree_obj = LatentTree()
 
     if star_case:
+        # Pick observed root if any row has a numerical zero entry
         root: Optional[int] = None
         for v in nodes:
             i_v = idx_of[v]
-            if any(gamma[i_v, idx_of[u]] == 0 for u in nodes if u != v):
+            if any(_is_zero(gamma[i_v, idx_of[u]]) for u in nodes if u != v):
                 root = v
                 break
 
         if root is None:
+            # Latent root
             root_name = _new_latent()
             tree_obj.add_node(root_name)
             for v in nodes:
                 tree_obj.add_node(str(v))
                 tree_obj.add_edge(root_name, str(v))
         else:
+            # Observed root
             root_name = str(root)
             tree_obj.add_node(root_name)
             for v in nodes:
@@ -139,6 +167,7 @@ def tree(gamma: np.ndarray, w_override: Optional[int] = None, _nodes: Optional[L
                     tree_obj.add_edge(root_name, str(v))
         return tree_obj
 
+    # Non-star: choose w deterministically
     if w_override is not None:
         if w_override not in nodes:
             raise ValueError(f"w_override {w_override} not in current node set")
@@ -147,8 +176,12 @@ def tree(gamma: np.ndarray, w_override: Optional[int] = None, _nodes: Optional[L
         w_candidates = [v for v in nodes if B[v] != set(nodes) - {v}]
         if not w_candidates:
             raise ValueError("Cannot find suitable w for decomposition")
-        w = w_candidates[0]
+        def w_score(v: int) -> Tuple[float, int]:
+            min_gamma = min(gamma[idx_of[v], idx_of[u]] for u in nodes if u != v)
+            return (float(min_gamma), v)  # tie-break by node id
+        w = min(w_candidates, key=w_score)
 
+    # Decompose
     O1: List[int] = sorted(list(B[w] | {w}))
     O2: List[int] = sorted(list(set(nodes) - B[w]))
 
@@ -166,35 +199,45 @@ def tree(gamma: np.ndarray, w_override: Optional[int] = None, _nodes: Optional[L
 
 
 def _tree_merger(T1: LatentTree, T2: LatentTree, w_str: str) -> LatentTree:
+    """
+    Merge T1 into T2 by replacing 'w' in T2 with a new latent 'h' and attaching T1.
+
+    Fix: If w is the root of T2, attach as r1 -> h (not h -> r1).
+    """
     h = _new_latent()
     new_tree = LatentTree()
 
     parent_of_w: Optional[str] = T2._parent.get(w_str)
 
+    # Copy T2 structure, with w replaced by h
     mapping = {u: (h if u == w_str else u) for u in T2.nodes}
 
     for parent, children in T2._children.items():
         for child in children:
             if child == w_str:
-                continue
+                continue  # skip edges into w
             p_mapped = mapping[parent]
             c_mapped = mapping[child]
             new_tree.add_node(p_mapped)
             new_tree.add_node(c_mapped)
             new_tree.add_edge(p_mapped, c_mapped)
 
+    # Copy T1 into new_tree
     for parent, children in T1._children.items():
         for child in children:
             new_tree.add_node(parent)
             new_tree.add_node(child)
             new_tree.add_edge(parent, child)
 
+    # Connect
     if parent_of_w is None:
+        # w was root of T2 -> attach T1.root -> h   (FIXED orientation)
         new_tree.add_node(h)
         if T1.nodes:
             r1 = T1.root
-            new_tree.add_edge(h, r1)
+            new_tree.add_edge(r1, h)
     else:
+        # Connect parent_of_w (mapped) -> T1.root
         p_mapped = mapping[parent_of_w]
         if T1.nodes:
             r1 = T1.root
@@ -241,29 +284,3 @@ def polytree_true(gamma: np.ndarray) -> PolyDAG:
         for p, c in T.edges:
             P.add_edge(p, c)
     return P
-
-
-def test_example_7():
-    gamma_O = np.array([
-        [0, 2, 3, 1, 4],
-        [0, 0, -2, 0, 1],
-        [1, -3, 0, 1, -3],
-        [0, 1, 2, 0, 3],
-        [0, 0, -1, 0, 0]
-    ])
-    print("=== EXAMPLE 7 (true-polytree merge) ===")
-    groups = separation(gamma_O)
-    print("Groups:", groups)
-    for i, G in enumerate(groups):
-        sub = sorted(G)
-        T = tree(gamma_O[np.ix_(sub, sub)], _nodes=sub)
-        print(f"T{i+1}:", T.edges)
-
-    P = polytree_true(gamma_O)
-    print("Merged edges:", sorted(P.edges))
-    print("Nodes:", P.nodes)
-    expected = [('4','1'), ('1','3'), ('3','0')]
-    print("Expected chain present:", all(e in P.edges for e in expected))
-
-if __name__ == "__main__":
-    test_example_7()

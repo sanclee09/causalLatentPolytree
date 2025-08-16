@@ -81,7 +81,7 @@
   % TODO: Write a concise abstract (\approx 200 words) summarising
   % the research question, methodology, and expected contributions.
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  This thesis studies linear, non--Gaussian, acyclic models (LiNGAM) whose underlying directed graph is a \emph{minimal latent polytree}.  Building on the moment identities of \citet{shimizu:hoyer:2006,tramontano:monod:drton:2022}, we propose a novel discrepancy matrix based on second and third cumulants of the observed variables.  When plugged into the axiomatic framework of \citet{etesami:kiyavash:coleman:2016}, the new discrepancy enables provably consistent recovery of both observed and latent portions of the polytree.  We outline theoretical guarantees and an empirical evaluation on synthetic data sets.
+  This thesis studies linear, non--Gaussian, acyclic models (LiNGAM) whose underlying directed graph is a \emph{minimal latent polytree}.  Building on the moment identities of \citet{shimizu:hoyer:2006} and \citet{tramontano:monod:drton:2022}, we propose a novel discrepancy matrix based on second and third cumulants of the observed variables.  When plugged into the axiomatic framework of \citet{etesami:kiyavash:coleman:2016}, the new discrepancy enables provably consistent recovery of both observed and latent portions of the polytree.  We outline theoretical guarantees and an empirical evaluation on synthetic data sets.
 \end{abstract}
 
 \tableofcontents
@@ -90,9 +90,9 @@
 \section{Introduction}
 \label{sec:intro}
 
-Causal discovery from observational data is a central challenge in modern statistics and machine learning.  The \emph{Linear Non--Gaussian Acyclic Model} (LiNGAM) \citep{shimizu:hoyer:2006} demonstrates that non--Gaussianity of disturbances suffices to orient edges in a directed acyclic graph (DAG) that is fully observed.  However, many practical systems contain latent variables whose omission can distort causal inferences.  This thesis investigates LiNGAMs whose causal structure forms a \emph{minimal latent polytree}, following the terminology of \citet{etesami:kiyavash:coleman:2016}.  
+Causal discovery from observational data is a central challenge in modern statistics and machine learning.  The \emph{Linear Non--Gaussian Acyclic Model} (LiNGAM) \citep{shimizu:hoyer:2006} demonstrates that non--Gaussianity of disturbances suffices to orient edges in a directed acyclic graph (DAG) that is fully observed.  However, many practical systems contain latent variables whose omission can distort causal inferences.  This thesis investigates LiNGAMs whose causal structure forms a \emph{minimal latent polytree}, following the terminology of \citet{etesami:kiyavash:coleman:2016}.
 
-Paper~\citep{tramontano:monod:drton:2022} shows that certain rank conditions on matrices built from second and third cumulants characterize edge orientations, yet its focus is on fully observed graphs.  Conversely, paper~\citep{etesami:kiyavash:coleman:2016} develops a four--axiom \emph{discrepancy matrix} that suffices to learn a latent polytree, but instantiates the matrix via directed--information estimators suited to time series.  In this work we synthesise the two lines: we design a cumulant--based discrepancy that obeys the axioms on a single--time--slice latent polytree.
+The work of \citet{tramontano:monod:drton:2022} shows that certain rank conditions on matrices built from second and third cumulants characterize edge orientations, yet its focus is on fully observed graphs.  Conversely, \citep{etesami:kiyavash:coleman:2016} develops a four--axiom \emph{discrepancy matrix} that suffices to learn a latent polytree, but instantiates the matrix via directed--information estimators suited to time series.  In this work we synthesise the two lines: we design a cumulant--based discrepancy that obeys the axioms on a single--time--slice latent polytree.
 
 \paragraph{Contributions.} The main contributions are:
 \begin{enumerate}[label=(C\arabic*)]
@@ -102,7 +102,7 @@ Paper~\citep{tramontano:monod:drton:2022} shows that certain rank conditions on 
   \item Empirical study evaluating orientation accuracy and sample complexity under varying latent proportions (Section~\ref{sec:experiments}).
 \end{enumerate}
 
-\paragraph{Organisation.} Section~\ref{sec:background} reviews the requisite graph--theoretic and statistical preliminaries.  The latent--LiNGAM model is formalised in Section~\ref{sec:model}.  Section~\ref{sec:discrepancy} introduces the cumulant discrepancy matrix and establishes its properties.  Section~\ref{sec:algorithm} outlines a learning algorithm and sketches consistency proofs.  Section~\ref{sec:experiments} presents numerical experiments, and Section~\ref{sec:conclusion} concludes with directions for future work.
+\paragraph{Organisation.} Section~\ref{sec:lingam_background} reviews the requisite graph--theoretic and statistical preliminaries.  The latent--LiNGAM model is formalised in Section~\ref{sec:model}.  Section~\ref{sec:discrepancy} introduces the cumulant discrepancy matrix and establishes its properties.  Section~\ref{sec:algorithm} outlines a learning algorithm and sketches consistency proofs.  Section~\ref{sec:experiments} presents numerical experiments, and Section~\ref{sec:conclusion} concludes with directions for future work.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Linear Non-Gaussian Structural Causal Models}
