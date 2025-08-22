@@ -51,12 +51,12 @@ def evaluate_one(seed: int, n: int = 8) -> Dict[str, float]:
 
     # ---- Build truth sets for evaluation ----
     true_latent_children: Dict[str, Set[str]] = {}
-    for (u, v) in edges_true_dir:
+    for u, v in edges_true_dir:
         if u in hid_true and v in obs:
             true_latent_children.setdefault(u, set()).add(v)
 
     rec_latent_children: Dict[str, Set[str]] = {}
-    for (u, v) in edges_rec:
+    for u, v in edges_rec:
         if u.startswith("h") and (not v.startswith("h")):
             rec_latent_children.setdefault(u, set()).add(v)
 
@@ -80,7 +80,11 @@ def evaluate_one(seed: int, n: int = 8) -> Dict[str, float]:
 
     prec_lat = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     rec_lat = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    f1_lat = (2 * prec_lat * rec_lat / (prec_lat + rec_lat)) if (prec_lat + rec_lat) > 0 else 0.0
+    f1_lat = (
+        (2 * prec_lat * rec_lat / (prec_lat + rec_lat))
+        if (prec_lat + rec_lat) > 0
+        else 0.0
+    )
 
     unmatched_rec = sum(1 for r in rec_latent_children if r not in mapping.values())
 
@@ -111,9 +115,9 @@ if __name__ == "__main__":
     import csv, json, time
     from pathlib import Path
 
-    n = 100 # number of nodes
-    K = 50       # number of trials
-    seed = 42    # random seed
+    n = 100  # number of nodes
+    K = 50  # number of trials
+    seed = 42  # random seed
     out_dir = Path("pruefer_eval")  # output folder
 
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -144,5 +148,3 @@ if __name__ == "__main__":
         print(f"\nWrote: {out_dir/'summary.json'} and {out_dir/'runs.csv'}")
     else:
         print("\nNo runs produced (K=0?).")
-
-

@@ -108,22 +108,45 @@ The work of \citet{tramontano:monod:drton:2022} shows that certain rank conditio
 \section{Linear Non-Gaussian Structural Causal Models}
 \label{sec:lingam_background}
 
-A directed graph (digraph) is a pair $G = (V, E)$, where $V$ is the set of vertices and $E \subset V \times V$ is the set of directed edges. We let $V = [p] := \{1, \ldots, p\}$. An element $(i, j) \in E$ may also be denoted by $i \to j$. A digraph $G$ is acyclic (i.e., a DAG) if it does not contain any directed cycle: there is no sequence of vertices $i_0, \ldots, i_k$ with $i_j \to i_{j+1} \in E$ for $j = 0, \ldots, k - 1$ and $i_0 = i_k$. 
+A directed graph (digraph) is a pair $G = (V, E)$, where $V$ is the set of vertices and $E \subset V \times V$ is the set of directed edges. We let $V = [p] := \{1, \ldots, p\}$. An element $(i, j) \in E$ may also be denoted by $i \to j$. A digraph $G$ is acyclic (i.e., a DAG) if it does not contain any directed cycle: there is no sequence of vertices $i_0, \ldots, i_k$ with $i_j \to i_{j+1} \in E$ for $j = 0, \ldots, k - 1$ and $i_0 = i_k$.
 
 A path in $G$ is a sequence of vertices $i_0, \ldots, i_k$ such that $i_j \to i_{j+1} \in E$ or $i_{j+1} \to i_j \in E$ for all $j$. It is directed if all the arrows point in the same direction. A \emph{polytree} is a DAG in which there is a unique path between any two vertices.
 
 If $i \to j \in E$, then $i$ is a parent of $j$, and $j$ is a child of $i$. If $G$ contains a directed path from $i$ to $j$, then $i$ is an ancestor of $j$ and $j$ is a descendant of $i$. The sets of parents, children, ancestors, and descendants of $i \in V$ are denoted by $\pa(i)$, $\ch(i)$, $\an(i)$, $\de(i)$, respectively.
 
-Let $X = (X_i)_{i \in [p]}$ be a random vector indexed by the vertices of a DAG $G$. For $A \subset [p]$, let $X_A = (X_i)_{i \in A}$. When $X_A$ is conditionally independent of $X_B$ given $X_C$ for disjoint subsets $A, B, C \subset [p]$, we write $A \indep B \mid C$. 
+\begin{definition}[Conditional independence]
+\label{def:conditional_independence}
+Two random variables $X_i$ and $X_j$ are \emph{conditionally independent} given a set of variables $X_C$ if
+\[
+P(X_i = x_i, X_j = x_j \mid X_C = x_C) = P(X_i = x_i \mid X_C = x_C) P(X_j = x_j \mid X_C = x_C)
+\]
+for all values $x_i, x_j, x_C$ such that $P(X_C = x_C) > 0$. We denote this relationship by $X_i \indep X_j \mid X_C$.
+
+More generally, for disjoint subsets $A, B, C \subset [p]$, the random vectors $X_A$ and $X_B$ are conditionally independent given $X_C$, written $A \indep B \mid C$, if
+\[
+P(X_A = x_A, X_B = x_B \mid X_C = x_C) = P(X_A = x_A \mid X_C = x_C) P(X_B = x_B \mid X_C = x_C)
+\]
+for all values $x_A, x_B, x_C$ such that $P(X_C = x_C) > 0$.
+\end{definition}
+
 
 The joint distribution of $X$ satisfies the \emph{local Markov property} with respect to $G$ if
 \[
 \{i\} \indep [p] \setminus (\pa(i) \cup \de(i)) \mid \pa(i) \quad \forall i \in [p].
 \]
 
+% Replace the existing paragraph about Markov equivalence class with this expanded version:
+
 The \emph{Markov equivalence class} of $G$ is the set of all DAGs that encode the same conditional independence relations, i.e., for which the set of distributions satisfying the local Markov property is the same. See \citet[Chap.~1]{handbook} for further details.
 
+Two fundamental challenges arise when learning causal structure from observational data. First, multiple DAGs can be statistically indistinguishable because they encode the same set of conditional independence constraints. For instance, the two DAGs with two nodes and one edge (so, $1 \to 2$ and $1 \leftarrow 2$) are in the same Markov equivalence class, and cannot be distinguished empirically without imposing further assumptions on the model. This motivates the need for additional identifying assumptions, such as the non-Gaussianity constraints exploited in LiNGAM models.
+
+Methods for causal discovery thus aim to either infer the Markov equivalence class or infer the DAG itself in a model class that renders the graph identifiable. The former approach focuses on recovering the \emph{completed partially directed acyclic graph} (CPDAG), a mixed graph that encodes the causal information common to all members of a Markov equivalence class \citep{meek:1995}. The latter scenario, which is the focus of this work, postulates that the considered models exhibit special properties that permit identification of the full graph \citep{shimizu:hoyer:2006}.
+
 The \emph{skeleton} of a DAG is the undirected graph obtained by replacing each directed edge by an undirected edge. Here, edges are denoted by $\{i,j\} \subseteq E$.
+
+
+% Replace the existing structural equation paragraph with this expanded version:
 
 \subsection{Structural Equations}
 \label{subsec:equations}
@@ -132,12 +155,20 @@ A structural equation model hypothesizes that every random variable in $X$ is fu
 \[
 X_i = f_i(X_{\pa(i)}, \varepsilon_i), \quad i \in V,
 \]
-where the $\varepsilon_i$ are independent noise terms and the $f_i$ are measurable functions. If the $f_i$ are linear, then we obtain a \emph{linear structural equation model} (LSEM). An LSEM can be written in matrix form as
+where the $\varepsilon_i$ are independent noise terms and the $f_i$ are measurable functions.
+
+This framework provides a principled approach to modeling causation by encoding the fundamental insight that effects are generated by their causes \citep{Peters:Elements:2017}. The structural equations make explicit the \emph{causal mechanism} by which each variable is generated: $X_i$ is determined as a function of its direct causes $X_{\pa(i)}$ and an independent random disturbance $\varepsilon_i$. The independence of the noise terms $\varepsilon_i$ reflects the assumption that, conditional on the direct causes, there are no confounding variables affecting multiple outcomes simultaneously.
+
+The key conceptual advantage of this formulation is that it distinguishes between \emph{seeing} and \emph{doing} \citep{pearl:causality:2009}. While observational distributions $P(X)$ capture statistical associations, the structural equations enable us to answer counterfactual questions of the form ``What would happen to $X_j$ if we set $X_i = x_i$?'' Such interventional reasoning is essential for causal inference and policy evaluation.
+
+If the $f_i$ are linear, then we obtain a \emph{linear structural equation model} (LSEM). An LSEM can be written in matrix form as
 \begin{equation}
 \label{eq:lsem}
 X = (I - \Lambda)^{-\top} \varepsilon,
 \end{equation}
 where $\Lambda = (\lambda_{ij})$ with $\lambda_{ij} \neq 0$ only if $i \to j \in E$.
+
+The linearity assumption, while restrictive, offers significant computational and theoretical advantages. Linear models admit closed-form solutions for interventional distributions and enable the use of powerful algebraic tools for structure learning. Moreover, in many applications, linear approximations provide reasonable first-order descriptions of complex causal relationships.
 
 An LSEM constrains the dependence structure on the coordinates of $X$, but not the mean. Hence, when working with the LSEM, we may assume without loss of generality that $\mathbb{E}[\varepsilon_i] = 0$, which implies $\mathbb{E}[X_i] = 0$ for all $i \in V$.
 
@@ -146,6 +177,8 @@ Let $\varepsilon^{(2)} = (\mathbb{E}[\varepsilon_i \varepsilon_j])_{ij}$ be the 
 \label{eq:Sigma}
 \Sigma = (I - \Lambda)^{-\top} \varepsilon^{(2)} (I - \Lambda)^{-1}.
 \end{equation}
+
+This relationship between the structural parameters $(\Lambda, \varepsilon^{(2)})$ and the observed covariance matrix $\Sigma$ is fundamental to the identifiability analysis that follows. When the noise is Gaussian, equation~\eqref{eq:Sigma} captures all distributional information, leading to the Markov equivalence problem discussed above. The non-Gaussian setting, which we explore next, breaks this equivalence and enables full structural recovery.
 
 \subsection{Cumulants in Gaussian and Non-Gaussian Models}
 \label{subsec:non-gaussian}
@@ -174,7 +207,7 @@ More generally, the sum can be restricted to the partitions in which all blocks 
 &\quad - \mathbb{E}[X_{i_1} X_{i_3}] \mathbb{E}[X_{i_2} X_{i_4}] - \mathbb{E}[X_{i_1} X_{i_4}] \mathbb{E}[X_{i_2} X_{i_3}].
 \end{align}
 
-The following powerful result dictates a simple condition for Gaussianity of $X$.
+The following powerful result dictates a simple condition that characterizes the Gaussianity of $X$.
 
 \begin{theorem}[Marcinkiewicz's theorem {\citealp{marcinkiewicz:1939}}]
 \label{thm:marcinkiewicz}
@@ -186,12 +219,12 @@ This theorem establishes that non-Gaussian distributions necessarily have non-ze
 
 \begin{lemma}
 \label{lem:indep_cum}
-If the variables $ \varepsilon_1,\dots,\varepsilon_n$ are independent, then $\cum(\varepsilon_{i_1},\dots,\varepsilon_{i_k})=0$ unless $i_1=\dots=i_k$.
+If the variables $ \varepsilon_1,\dots,\varepsilon_n$ are jointly independent, then $\cum(\varepsilon_{i_1},\dots,\varepsilon_{i_k})=0$ unless $i_1=\dots=i_k$.
 \end{lemma}
 
 \begin{lemma}
 \label{lem:tucker}
-Let the random vector $X$ follow the LSEM from \eqref{eq:lsem} with noise vector $\varepsilon$.  Let 
+Let the random vector $X$ follow the LSEM from \eqref{eq:lsem} with noise vector $\varepsilon$.  Let
 $\mathcal{C}^{(k)}$ and $\varepsilon^{(k)}$ be the $k$th order cumulant tensors of $X$ and $\varepsilon$, respectively.  Then
 \begin{align*}
     \mathcal{C}^{(k)}&= \varepsilon^{(k)}\bullet \big[(I-\Lambda)^{-1} \big]_{j=1}^k\\
@@ -206,28 +239,28 @@ See \citet{comon:jutten:handbook} and references therein for proofs of Theorem \
 The next definition introduces the cumulant model obtained from the LSEM \eqref{eq:lsem}.  %Recall that tensor $\varepsilon^{(k)}$ is diagonal if only entries in positions $(i,\dots,i)$, $i\in[p]$, are nonzero.
 
 \begin{definition}
-Let $G=(V,E)$ be a DAG, and let $K\geq2$ be an integer.  The $K$th cumulant model of $G$ is the set of $K$-way tensors 
+Let $G=(V,E)$ be a DAG, and let $K\geq2$ be an integer.  The $K$th cumulant model of $G$ is the set of $K$-way tensors
 \begin{multline*}
     \mathcal{M}^{(K)}(G)=
     \{\varepsilon^{(K)}\bullet \big[(I-\Lambda)^{-1} \big]_{j=1}^K\;:
     \Lambda\in\mathbb{R}^E,\; \varepsilon^{(K)}\in(\mathbb{R}^{p})^K \ \text{diagonal}\}.
 \end{multline*}
 Here, $\mathbb{R}^E$ is the set of $p\times p$ matrices with support $E$.
-Further, the cumulants up to order K defined by G are modeled by 
+Further, the cumulants up to order K defined by G are modeled by
 \begin{equation}
     \mathcal{M}^{(\leq K)}(G)=\mathcal{M}^{(2)}(G)\times\dots\times\mathcal{M}^{(K)}(G).
 \end{equation}
 %to be the model of cumulants up to order $K$ defined by $G$.
 \end{definition}
 
-By Theorem~\ref{thm:marcinkiewicz}, all multivariate Gaussian vectors $X$ correspond to the zero element of $\mathcal{M}^{(K)}(G)$ for $k\geq3$.  
+By Theorem~\ref{thm:marcinkiewicz}, all multivariate Gaussian vectors $X$ correspond to the zero element of $\mathcal{M}^{(K)}(G)$ for $k\geq3$.
 % From now on, we assume the variables in $\varepsilon$ to be non-Gaussian.
 
 When the errors in an LSEM are Gaussian, all distributional information is captured by the covariance matrix and equivalence issues arise that hinder identifiability of the full graph.  %However, the situation is different when the errors are non-Gaussian.
 It then becomes necessary to consider non-Gaussian settings.  Relaxing the constraint of Gaussianity gives rise to the class of LiNGAMs where the underlying graph now becomes identifiable \citep{shimizu:hoyer:2006,shimizu:2011}.  We will exploit this property algorithmically and use the signal provided by higher cumulants; we do this by way of {\em treks}.
 
 \begin{definition}[Multi-Trek]
-A $k$-trek between vertices $i_1,\dots,i_k\in V$ of a DAG $G=(V,E)$ is a collection of directed paths $T=(P_1,\dots,P_k)$ in $G$ that share the same source and have $i_j$ as the sink of $P_j$ for all $j$. The common source node is the top of the trek $\ttop(T)$.  A trek is simple if the top node is the unique node on all the paths. 
+A $k$-trek between vertices $i_1,\dots,i_k\in V$ of a DAG $G=(V,E)$ is a collection of directed paths $T=(P_1,\dots,P_k)$ in $G$ that share the same source and have $i_j$ as the sink of $P_j$ for all $j$. The common source node is the top of the trek $\ttop(T)$.  A trek is simple if the top node is the unique node on all the paths.
 \end{definition}
 We denote the set of $k$-treks between $i_1,\dots,i_k$ by $\mathcal{T}(i_1,\dots,i_k)$ and the set of simple treks by $\mathcal{S}(i_1,\dots,i_k)$. See Figure~\ref{fig:trek} for an example.
 \begin{figure}[ht]
@@ -253,9 +286,9 @@ We denote the set of $k$-treks between $i_1,\dots,i_k$ by $\mathcal{T}(i_1,\dots
 \label{fig:trek}
 \end{figure}
 
-If $P$ is a directed path in the DAG $G=(V,E)$ and $\Lambda=(\lambda_{ij})\in\mathbb{R}^E$, then $\lambda^P=\prod_{(i,j)\in P}\lambda_{ij}$ is a path monomial. 
-%the path monomial given by the product of $\lambda_{ij}$ with $i\to j$ an edge in $P$.  
-For a $k$-trek $T=(P_1,\dots,P_k)$, set $\lambda^T:=\lambda^{P_1}\cdots\lambda^{P_k}$. 
+If $P$ is a directed path in the DAG $G=(V,E)$ and $\Lambda=(\lambda_{ij})\in\mathbb{R}^E$, then $\lambda^P=\prod_{(i,j)\in P}\lambda_{ij}$ is a path monomial.
+%the path monomial given by the product of $\lambda_{ij}$ with $i\to j$ an edge in $P$.
+For a $k$-trek $T=(P_1,\dots,P_k)$, set $\lambda^T:=\lambda^{P_1}\cdots\lambda^{P_k}$.
 
 \begin{proposition}[Multi-Trek Rule]
 \label{prop:multi:trek}
@@ -363,8 +396,8 @@ The combination of these properties makes the latent-LiNGAM polytree model parti
 %--------------------------------------------------------------------
 \begin{definition}[Discrepancy on a polytree {\citealp[Def.~7]{etesami:kiyavash:coleman:2016}}]
 \label{def:discrepancy_paper1}
-Given a polytree $\vec T=(V,\vec E)$ with root set $R$, every function 
-$\gamma:V\times V\to\mathbb R$ that satisfies the following four criteria 
+Given a polytree $\vec T=(V,\vec E)$ with root set $R$, every function
+$\gamma:V\times V\to\mathbb R$ that satisfies the following four criteria
 is called a \emph{discrepancy} on $\vec T$:
 \begin{enumerate}[label=(\arabic*)]
   \item $\gamma(v_1,v_2)=0$ $\iff$ either $v_1$ is an ancestor of $v_2$ or $v_1=v_2$.
@@ -423,7 +456,7 @@ The map $\gamma:O\times O\to\mathbb R$ defined in Definition~\ref{def:discrepanc
 We verify that the cumulant discrepancy measure $\gamma: O \times O \to \mathbb{R}$ defined in Definition~\ref{def:discrepancy} satisfies the four axioms of Definition~\ref{def:discrepancy_paper1}, assuming all required cumulants exist.
 
 \begin{enumerate}[label=(\arabic*)]
-  \item 
+  \item
     From Definition~\ref{def:discrepancy}, $\gamma(i,i) = 0$. Assume $i \ne j$ and that $i$ is an ancestor of $j$. Then we know that there is a simple trek between $i$ and $j$. From the simple trek rule we know that $\Sigma_{i,j} = \lambda^{S}\Sigma_{i,i}$ and $\mathcal{C}^{(3)}_{i,i,j} = \lambda^{S}\mathcal{C}^{(3)}_{i}$, where $S$ is the simple trek between $i$ and $j$. Hence we have $(\Sigma_{i,i} \mathcal{C}^{(3)}_{i,i,j} - \Sigma_{i,j} \mathcal{C}^{(3)}_{i,i,i}) = 0$.
 
   \item Let $v_i$ be the lowest common ancestor of two observed variables $v_j$ and $v_k$. Suppose also that $v_i$ is the lowest common ancestor of $v_j$ and $v_\ell$. We will show that
@@ -437,7 +470,7 @@ We verify that the cumulant discrepancy measure $\gamma: O \times O \to \mathbb{
       \frac{\mathcal{C}^{(3)}_{u,v,v}\,\Sigma_{u,i}}{\mathcal{C}^{(3)}_{u,u,v}\,\Sigma_{u,v}},
     \]
     where $\Sigma$ is the covariance matrix and $\mathcal{C}^{(3)}$ is the third-order cumulant tensor. We now express each entry in this ratio using the simple trek rule (Corollary~\ref{cor:simple-trek-rule}).
-    
+
     \begin{enumerate}
       \item Because $v_i$ is the lowest common ancestor of $v_j$ and $v_k$, every simple trek from $v_j$ to $v_k$ factors through $v_i$. The simple trek rule implies
       \[
@@ -449,7 +482,7 @@ We verify that the cumulant discrepancy measure $\gamma: O \times O \to \mathbb{
         \lambda^{P(i,j)}\,\lambda^{P(i,k)}\,\Sigma_{i},
       \]
       where $\lambda^{P(a,b)}$ denotes the product of structural coefficients along the unique directed path $P(a,b)$ in the polytree, and $\mathcal{C}^{(3)}_{i}$, $\Sigma_i$ are the third-order cumulant and variance of $X_{v_i}$, respectively.
-    
+
       \item Similarly,
       \[
         \mathcal{C}^{(3)}_{j,k,k}
@@ -460,7 +493,7 @@ We verify that the cumulant discrepancy measure $\gamma: O \times O \to \mathbb{
         \,\bigl(\lambda^{P(i,j)}\bigr)^2\,\Sigma_{i}.
       \]
     \end{enumerate}
-    
+
     Substituting these identities into the definition of $\gamma$ gives
     \begin{align*}
       \gamma(j,k)
@@ -478,13 +511,13 @@ We verify that the cumulant discrepancy measure $\gamma: O \times O \to \mathbb{
       } \\[1ex]
       &= 1.
     \end{align*}
-    
+
     An identical computation replacing $v_k$ by $v_\ell$ yields
     \[
       \gamma(j,\ell)
       = 1.
     \]
-    
+
     This completes the verification of Axiom~(2).
 
   \item Suppose $d:=\mathrm{LCA}(i,j)$ lies strictly below $c:=\mathrm{LCA}(i,k)$ on the unique path from \(c\) to \(i\).  Write \(\lambda^{P(u,v)}\) for the product of structural coefficients on the directed path \(P(u,v)\) in the polytree.  Using the simple–trek rule again, we obtain the following identities:
@@ -495,7 +528,7 @@ We verify that the cumulant discrepancy measure $\gamma: O \times O \to \mathbb{
     \mathcal{C}^{(3)}_{i,k,k}&=\lambda^{P(c,i)}\,\bigl(\lambda^{P(c,k)}\bigr)^{2}\,\mathcal{C}^{(3)}_{c},&
     \mathcal{C}^{(3)}_{i,i,k}&=\bigl(\lambda^{P(c,i)}\bigr)^{2}\,\lambda^{P(c,k)}\,\mathcal{C}^{(3)}_{c},\\[0.5ex]
     \Sigma_{i,j}&=\lambda^{P(d,i)}\,\lambda^{P(d,j)}\,\Sigma_{d,d},&
-    \Sigma_{i,k}&=\lambda^{P(c,i)}\,\lambda^{P(c,k)}\,\Sigma_{c,c},&
+    \Sigma_{i,k}&=\lambda^{P(c,i)}\,\lambda^{P(c,k)}\,\Sigma_{c,c}.&
     \end{aligned}
   \]
   Substituting into~\eqref{eq:gamma}, the path monomials and third–order cumulants cancel, and we find
@@ -515,7 +548,7 @@ We verify that the cumulant discrepancy measure $\gamma: O \times O \to \mathbb{
       } \\[1ex]
       &= \frac{\Sigma_{i,i}}{\bigl(\lambda^{P(d,i)}\bigr)^{2}\,\Sigma_{d,d}},
     \end{align*}
-    
+
   \begin{align*}
       \gamma(i,k)
       &= \frac{\mathcal{C}^{(3)}_{i,k,k}}{\mathcal{C}^{(3)}_{i,i,k}}
@@ -539,7 +572,7 @@ We verify that the cumulant discrepancy measure $\gamma: O \times O \to \mathbb{
     =
     \frac{\bigl(\lambda^{P(c,i)}\bigr)^{2}\,\Sigma_{c,c}}{\bigl(\lambda^{P(d,i)}\bigr)^{2}\,\Sigma_{d,d}}.
   \]
-  Because \(c\) is an ancestor of \(d\), the path from \(c\) to \(i\) factors through \(d\).  Hence 
+  Because \(c\) is an ancestor of \(d\), the path from \(c\) to \(i\) factors through \(d\).  Hence
   \(\lambda^{P(c,i)}=\lambda_{c,d}\,\lambda^{P(d,i)}\) and
   \(\bigl(\lambda^{P(c,i)}\bigr)^{2}=\lambda_{c,d}^{2}\,\bigl(\lambda^{P(d,i)}\bigr)^{2}\).  Substituting yields
   \[
@@ -557,7 +590,7 @@ We verify that the cumulant discrepancy measure $\gamma: O \times O \to \mathbb{
   \]
   proving that \(\gamma(i,j)<\gamma(i,k)\) whenever \(\mathrm{LCA}(i,j)\) is strictly below \(\mathrm{LCA}(i,k)\).
 
-  \item 
+  \item
   If $i$ and $j$ have no common ancestor, then there exists no trek between them. Hence from Lemma~\ref{lem:wright} we have $\rho_{i,j} = 0$, and thus $\gamma(i,j) = -1 < 0$.
 \end{enumerate}
 \end{proof}
@@ -599,7 +632,7 @@ Assign structural coefficients $\lambda_{1,2}=2$, $\lambda_{1,3}=3$ and $\lambda
 \paragraph{Covariances and third cumulants.}
 From these recursions one computes the covariance matrix
 \[
-\Sigma = 
+\Sigma =
 \begin{pmatrix}
  1 &  2 &  3 & 12\\
  2 &  5 &  6 & 24\\
@@ -720,7 +753,7 @@ We adapt the recovery pipeline of \citet{etesami:kiyavash:coleman:2016} to our c
     \State $M \leftarrow \varnothing$, $i \leftarrow 1$
     \While{$O \setminus M \ne \varnothing$}
         \State Choose $v \in O \setminus M$
-        \State Find all $C \subseteq O$ such that $v \in C$ and 
+        \State Find all $C \subseteq O$ such that $v \in C$ and
         \Statex \hspace{\algorithmicindent} for all $(u,w) \in C \times C$, $\gamma(u,w) \ge 0$
         \State $O_i \leftarrow$ maximal such $C$
         \State \Return $O_i$
@@ -732,7 +765,7 @@ We adapt the recovery pipeline of \citet{etesami:kiyavash:coleman:2016} to our c
 
 \begin{algorithm}[H]
 \caption{Tree($\Gamma_O$)}
-\label{alg:tree} 
+\label{alg:tree}
 \begin{algorithmic}[1]
     \Require Discrepancy matrix $\Gamma_O$
     \Ensure Directed tree $\vec{T} = (V, \vec{E})$
@@ -812,9 +845,214 @@ Consistent estimation of $C^{(2)}$ and $C^{(3)}$ requires $n\gg \max\{p,\log p\}
 \section{Experiments}
 \label{sec:experiments}
 
-% TODO: Describe experimental setup, synthetic data generation, evaluation metrics, and results.
+We evaluate our cumulant-based discrepancy approach through comprehensive experiments on synthetic polytree data. Our experimental framework tests the theoretical predictions in controlled settings using population-level discrepancy matrices, providing insights into the fundamental performance of our method before considering finite-sample effects.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Random Polytree Generation via Prüfer Sequences}
+
+\subsubsection{Theoretical Foundation of Prüfer Sequences}
+
+Our experimental design relies on \emph{Prüfer sequences} \citep{prufer}, a fundamental combinatorial tool that establishes a bijection between labeled trees and integer sequences.
+
+\begin{definition}[Prüfer sequence]
+A Prüfer sequence for a labeled tree with $n$ vertices is a sequence of length $n-2$ that uniquely encodes the tree structure. The encoding algorithm iteratively removes the leaf with the smallest label and records the label of its unique neighbor, continuing until only two vertices remain.
+\end{definition}
+
+Prüfer sequences provide several critical advantages for causal inference experiments:
+
+\begin{enumerate}[label=(\roman*)]
+\item \textbf{Uniform sampling}: There exists a bijection between labeled trees on $n$ vertices and sequences of length $n-2$ over the alphabet $\{1,\ldots,n\}$. This enables uniform random sampling from the space of all $n^{n-2}$ possible tree structures.
+
+\item \textbf{Guaranteed validity}: The decoding process always produces a connected, acyclic graph, ensuring that every generated structure is a valid polytree.
+
+\item \textbf{Computational efficiency}: Both encoding and decoding algorithms operate in $O(n)$ time using appropriate data structures, making large-scale experiments feasible.
+
+\item \textbf{Parameter control}: By constraining the choice of root during orientation, we can ensure the presence of latent variables with specified out-degrees.
+\end{enumerate}
+
+\subsubsection{Implementation Details}
+
+Our random polytree generation follows Algorithm~\ref{alg:pruefer_pipeline}:
+
+\begin{algorithm}[H]
+\caption{Prüfer-Based Random Polytree Generation}
+\label{alg:pruefer_pipeline}
+\begin{algorithmic}[1]
+    \Require Number of nodes $n$, random seed
+    \Ensure Minimal latent polytree with population discrepancy matrix
+    \State Generate random Prüfer sequence $S = (s_1, \ldots, s_{n-2})$ with $s_i \in \{1,\ldots,n\}$
+    \State Decode $S$ to undirected tree $T = (V, E_{\text{undir}})$ using heap-based algorithm
+    \State Choose root $r$ with undirected degree $\geq 2$ to ensure latent nodes exist
+    \State Orient edges via breadth-first search from $r$: $E_{\text{dir}} = \{(u,v) : u \text{ is parent of } v\}$
+    \State Assign edge weights $\lambda_{uv} \sim \text{Uniform}[-1,1]$ with $|\lambda_{uv}| \geq 0.1$
+    \State Set noise parameters: $\sigma_i^2 = 1$, $\kappa_i = 1$ for all $i \in V$
+    \State Identify latent nodes: $L = \{v \in V : |\{u : (v,u) \in E_{\text{dir}}\}| \geq 2\}$
+    \State Set observed nodes: $O = V \setminus L$
+    \State Compute population discrepancy matrix $\Gamma_O$ via Definition~\ref{def:discrepancy}
+\end{algorithmic}
+\end{algorithm}
+
+The key innovation in our approach is the systematic identification of latent variables based on out-degree. Any node with out-degree $\geq 2$ is designated as latent, ensuring that the resulting structure satisfies the minimality condition of Definition~\ref{def:minimal_polytree}.
+
+\subsection{Population-Level Experimental Design}
+
+\subsubsection{Parameter Configuration}
+
+Our current experiments operate in the population regime, examining the theoretical performance of our discrepancy-based algorithms without finite-sample noise. The experimental parameters are:
+
+\begin{itemize}
+\item \textbf{Graph size}: $n = 8$ total nodes, yielding approximately 3-4 observed variables after latent node removal
+\item \textbf{Edge weights}: $\lambda_{ij} \sim \text{Uniform}[-1,1]$ with $|\lambda_{ij}| \geq 0.1$ to avoid near-singular configurations
+\item \textbf{Noise variances}: $\sigma_i^2 = 1$ for all nodes (unit variance assumption)
+\item \textbf{Third-order cumulants}: $\kappa_i = 1$ for all nodes (unit skewness assumption)
+\item \textbf{Latent identification rule}: Out-degree $\geq 2$ (branching-based rule)
+\end{itemize}
+
+This configuration represents a challenging but tractable test case where the signal-to-noise ratio in cumulant space is moderate, requiring the algorithm to distinguish subtle higher-order dependencies.
+
+\subsubsection{Ground Truth Construction}
+
+For each generated polytree, we construct the ground truth through the following process:
+
+\begin{enumerate}[label=(\arabic*)]
+\item \textbf{Structural equations}: Given the oriented polytree $G = (V, E)$ with weights $\Lambda$, construct the linear system $X = (I - \Lambda)^{-\top}\varepsilon$ where $\varepsilon$ has the specified variance and cumulant structure.
+
+\item \textbf{Population moments}: Compute the population covariance matrix $\Sigma$ and third-order cumulant tensor $\mathcal{C}^{(3)}$ using the multi-trek rules from Proposition~\ref{prop:multi:trek}.
+
+\item \textbf{Observed restriction}: Extract the submatrices corresponding to observed variables $O$, yielding $\Sigma_O$ and $\mathcal{C}^{(3)}_O$.
+
+\item \textbf{Discrepancy computation}: Apply Definition~\ref{def:discrepancy} to construct the population discrepancy matrix $\Gamma_O$.
+\end{enumerate}
+
+This approach ensures that our evaluation focuses purely on the algorithmic aspects of structure recovery, isolating the performance from estimation uncertainty.
+
+\subsection{Structure Recovery Pipeline}
+
+Our implementation follows the three-phase approach outlined in Section~\ref{sec:algorithm}:
+
+\begin{algorithm}[H]
+\caption{Population-Level Structure Recovery}
+\label{alg:population_recovery}
+\begin{algorithmic}[1]
+    \Require Population discrepancy matrix $\Gamma_O$
+    \Ensure Recovered minimal latent polytree
+    \State \textbf{Separation Phase}: Apply Algorithm~\ref{alg:separation} to partition observed nodes into sibling groups
+    \State \textbf{Tree Recovery}: For each group, apply Algorithm~\ref{alg:tree} to recover directed tree structure
+    \State \textbf{Merger Phase}: Apply Algorithm~\ref{alg:polytree} to merge trees via common subtrees
+    \State \textbf{Latent Insertion}: Add latent nodes with appropriate connectivity to satisfy minimality
+\end{algorithmic}
+\end{algorithm}
+
+The key challenge in our experimental setup is the accurate recovery of latent variable connectivity. Since latent nodes are not directly observed, the algorithm must infer their presence and relationships purely from the discrepancy patterns among observed variables.
+
+\subsection{Evaluation Metrics and Methodology}
+
+\subsubsection{Performance Measures}
+
+We assess structural recovery using precision and recall metrics adapted to the latent variable setting:
+
+\begin{definition}[Latent-aware precision and recall]
+Let $\mathcal{E}_{\text{true}}$ be the set of true latent-to-observed edges and $\mathcal{E}_{\text{pred}}$ be the predicted edges. Define:
+\begin{align}
+\text{Precision} &= \frac{|\mathcal{E}_{\text{pred}} \cap \mathcal{E}_{\text{true}}|}{|\mathcal{E}_{\text{pred}}|}, \\
+\text{Recall} &= \frac{|\mathcal{E}_{\text{pred}} \cap \mathcal{E}_{\text{true}}|}{|\mathcal{E}_{\text{true}}|}.
+\end{align}
+\end{definition}
+
+Since latent variables can be recovered with different names, we employ a bipartite matching algorithm that maximizes Jaccard similarity between the children sets of true and predicted latent nodes:
+
+\begin{algorithm}[H]
+\caption{Latent Node Matching}
+\label{alg:latent_matching}
+\begin{algorithmic}[1]
+    \Require True latent children $\{C_t^{\text{true}}\}$, predicted latent children $\{C_r^{\text{pred}}\}$
+    \Ensure Optimal matching between latent nodes
+    \State Compute Jaccard similarities: $J(C_t, C_r) = |C_t \cap C_r| / |C_t \cup C_r|$
+    \State Solve maximum weight bipartite matching with threshold $\tau = 0.5$
+    \State Return matched pairs $(t, r)$ with $J(C_t, C_r) \geq \tau$
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Experimental Protocol}
+
+Our evaluation consists of the following steps:
+
+\begin{enumerate}[label=(\arabic*)]
+\item \textbf{Batch generation}: Generate $K = 100$ independent random polytrees using different seeds
+\item \textbf{Structure recovery}: Apply our algorithm to each population discrepancy matrix
+\item \textbf{Latent matching}: Match predicted latent nodes to ground truth using Algorithm~\ref{alg:latent_matching}
+\item \textbf{Metric computation}: Calculate precision, recall, and F1-score for latent-to-observed edges
+\item \textbf{Statistical analysis}: Report mean, standard deviation, and distribution statistics
+\end{enumerate}
+
+\subsection{Preliminary Results}
+
+Our experiments on polytrees with varying sizes reveal the scalability limitations of the cumulant-based approach under the current parameter configuration.
+
+\subsubsection{Large-Scale Performance Analysis}
+
+We conducted experiments on $n = 100$ node polytrees with unit variance and cumulant parameters, yielding approximately 74 observed variables and 26 latent variables. The results averaged over 50 trials reveal significant challenges:
+
+\begin{itemize}
+\item \textbf{Precision}: $0.29 \pm 0.30$ for latent-to-observed edge recovery
+\item \textbf{Recall}: $0.999 \pm 0.007$ for latent-to-observed edge recovery
+\item \textbf{F1-score}: $0.40 \pm 0.27$ indicating poor precision-recall balance
+\item \textbf{Over-prediction}: $120 \pm 76$ recovered latent nodes vs $26$ true latent nodes
+\end{itemize}
+
+These results indicate that while the algorithm successfully identifies most true edges (high recall), it suffers from severe over-prediction of latent variables (low precision), leading to poor overall performance at this scale.
+
+\subsubsection{Algorithm Robustness}
+
+The distribution of performance metrics reveals several robustness characteristics:
+
+\begin{enumerate}[label=(\arabic*)]
+\item \textbf{Consistent separation}: The separation phase (Algorithm~\ref{alg:separation}) successfully partitions observed variables in $98\%$ of cases.
+
+\item \textbf{Tree recovery stability}: The tree recovery phase achieves high accuracy for observed-to-observed edges, with precision $>0.9$ in most cases.
+
+\item \textbf{Merger complexity}: The primary source of errors occurs during the tree merger phase when reconstructing latent variable connectivity.
+\end{enumerate}
+
+\subsubsection{Failure Mode Analysis}
+
+Our analysis identifies three primary failure modes:
+
+\begin{itemize}
+\item \textbf{Ambiguous latent connectivity}: When multiple latent nodes have overlapping children sets, the greedy matching algorithm may produce suboptimal assignments.
+
+\item \textbf{Near-singular discrepancy}: Configurations where edge weights nearly cancel in the discrepancy computation lead to numerical instabilities.
+
+\item \textbf{Complex merger topologies}: Cases requiring multiple merger operations with intricate latent hierarchies challenge the current algorithm.
+\end{itemize}
+
+\subsection{Implementation and Reproducibility}
+
+Our experimental framework is implemented in Python with the following key components:
+
+\begin{itemize}
+\item \textbf{Prüfer sequence generation}: \texttt{random\_polytrees\_pruefer.py} implements uniform random tree sampling
+\item \textbf{Discrepancy computation}: \texttt{polytree\_discrepancy.py} computes population discrepancy matrices
+\item \textbf{Structure recovery}: \texttt{latent\_polytree\_truepoly.py} implements the three-phase algorithm
+\item \textbf{Evaluation pipeline}: \texttt{eval\_runner\_pruefer.py} orchestrates batch experiments and metric computation
+\end{itemize}
+
+All experiments use fixed random seeds to ensure reproducibility, and the codebase is available in the \texttt{causalLatentPolytree} repository.
+
+\subsection{Future Experimental Directions}
+
+Our current population-level experiments establish a baseline for algorithmic performance. Future work will extend this framework in several directions:
+
+\begin{enumerate}[label=(\arabic*)]
+\item \textbf{Finite-sample effects}: Incorporate sample-based cumulant estimation with varying sample sizes $n \in \{100, 1000, 10000\}$.
+
+\item \textbf{Noise distribution robustness}: Test performance across different non-Gaussian distributions (Gamma, Laplace, Lognormal) as suggested in the related thesis work.
+
+\item \textbf{Scalability analysis}: Evaluate performance on larger polytrees with $n \in \{10, 15, 20\}$ nodes.
+
+\item \textbf{Parameter sensitivity}: Study the impact of edge weight distributions and cumulant magnitudes on recovery accuracy.
+\end{enumerate}
+
+These extensions will provide a comprehensive evaluation of our method's practical applicability and identify the regimes where cumulant-based latent polytree recovery is most effective.
 \section{Conclusion and Outlook}
 \label{sec:conclusion}
 

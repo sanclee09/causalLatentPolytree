@@ -1,4 +1,3 @@
-
 """
 learn_with_hidden.py
 
@@ -12,14 +11,14 @@ from typing import Dict, Tuple, List, Iterable, Optional, Set
 
 import numpy as np
 
-from polytree_discrepancy import Polytree, compute_discrepancy
+from polytree_discrepancy import Polytree, compute_discrepancy, compute_discrepancy_fast
 from latent_polytree_truepoly import polytree_true
 
 # -------- Hidden-node detection --------
 
+
 def detect_learnable_nodes(
-    edges: Dict[Tuple[str, str], float],
-    min_outdegree: int = 2
+    edges: Dict[Tuple[str, str], float], min_outdegree: int = 2
 ) -> Set[str]:
     """
     Return nodes that have out-degree >= min_outdegree.
@@ -33,6 +32,7 @@ def detect_learnable_nodes(
 
 
 # -------- Observed Γ construction --------
+
 
 def observed_gamma_from_params(
     edges: Dict[Tuple[str, str], float],
@@ -49,7 +49,7 @@ def observed_gamma_from_params(
         (Gamma_obs, observed_nodes, hidden_nodes)
     """
     poly = Polytree(edges, sigmas, kappas)
-    Gamma_full = compute_discrepancy(poly)
+    Gamma_full = compute_discrepancy_fast(poly)
     order = poly.nodes
 
     hidden_nodes: Set[str] = set(hidden or [])
@@ -63,6 +63,7 @@ def observed_gamma_from_params(
 
 
 # -------- End-to-end learning --------
+
 
 def learn_from_params_with_auto_hidden(
     edges: Dict[Tuple[str, str], float],
@@ -83,7 +84,10 @@ def learn_from_params_with_auto_hidden(
       Gamma_obs (np.ndarray), observed_nodes (List[str]), hidden_nodes (List[str]), edges_named (List[Tuple[str,str]])
     """
     Gamma_obs, observed_nodes, hidden_nodes = observed_gamma_from_params(
-        edges, sigmas, kappas, hidden=hidden,
+        edges,
+        sigmas,
+        kappas,
+        hidden=hidden,
         auto_detect_hidden=auto_detect_hidden,
         min_outdegree=min_outdegree,
     )
@@ -101,12 +105,14 @@ def learn_from_params_with_auto_hidden(
 # ---- Demo ----
 if __name__ == "__main__":
     # Four-node test where v1 is a branching node (auto-detected as hidden)
-    edges = {("v1","v2"): 2.0, ("v1","v3"): 3.0, ("v3","v4"): 4.0}
-    sigmas = {"v1":1.0, "v2":1.0, "v3":1.0, "v4":1.0}
-    kappas = {"v1":1.0, "v2":1.0, "v3":1.0, "v4":1.0}
+    edges = {("v1", "v2"): 2.0, ("v1", "v3"): 3.0, ("v3", "v4"): 4.0}
+    sigmas = {"v1": 1.0, "v2": 1.0, "v3": 1.0, "v4": 1.0}
+    kappas = {"v1": 1.0, "v2": 1.0, "v3": 1.0, "v4": 1.0}
 
-    Gamma_obs, observed_nodes, hidden_nodes, edges_named = learn_from_params_with_auto_hidden(
-        edges, sigmas, kappas, hidden=None, auto_detect_hidden=True, min_outdegree=2
+    Gamma_obs, observed_nodes, hidden_nodes, edges_named = (
+        learn_from_params_with_auto_hidden(
+            edges, sigmas, kappas, hidden=None, auto_detect_hidden=True, min_outdegree=2
+        )
     )
 
     print("Observed nodes:", observed_nodes)

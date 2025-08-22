@@ -15,8 +15,10 @@ import itertools
 # Numerical tolerance
 EPS = 1e-9
 
+
 def _is_zero(x: float) -> bool:
     return np.isclose(x, 0.0, atol=EPS)
+
 
 def separation(gamma: np.ndarray) -> List[Set[int]]:
     n = gamma.shape[0]
@@ -55,7 +57,8 @@ def separation(gamma: np.ndarray) -> List[Set[int]]:
     for g in maximal_groups:
         fg = frozenset(g)
         if fg not in seen:
-            seen.add(fg); uniq.append(g)
+            seen.add(fg)
+            uniq.append(g)
     return uniq
 
 
@@ -73,7 +76,9 @@ class LatentTree:
 
     @property
     def edges(self) -> List[Tuple[str, str]]:
-        return [(parent, child) for parent, kids in self._children.items() for child in kids]
+        return [
+            (parent, child) for parent, kids in self._children.items() for child in kids
+        ]
 
     @property
     def root(self) -> str:
@@ -81,7 +86,9 @@ class LatentTree:
         children = set(self._parent.keys())
         roots = all_nodes - children
         if len(roots) != 1:
-            raise ValueError(f"Tree should have exactly one root, found {len(roots)}: {roots}")
+            raise ValueError(
+                f"Tree should have exactly one root, found {len(roots)}: {roots}"
+            )
         return next(iter(roots))
 
     def add_edge(self, parent: str, child: str) -> None:
@@ -93,7 +100,7 @@ class LatentTree:
     def add_node(self, node: str) -> None:
         self._children.setdefault(node, set())
 
-    def copy(self) -> 'LatentTree':
+    def copy(self) -> "LatentTree":
         new_tree = LatentTree()
         for parent, children in self._children.items():
             new_tree.add_node(parent)
@@ -105,11 +112,16 @@ class LatentTree:
 
 _latent_counter = itertools.count(1)
 
+
 def _new_latent() -> str:
     return f"h{next(_latent_counter)}"
 
 
-def tree(gamma: np.ndarray, w_override: Optional[int] = None, _nodes: Optional[List[int]] = None) -> LatentTree:
+def tree(
+    gamma: np.ndarray,
+    w_override: Optional[int] = None,
+    _nodes: Optional[List[int]] = None,
+) -> LatentTree:
     """Algorithm 2 (Tree) with deterministic, stable behavior."""
     if _nodes is None:
         nodes: List[int] = list(range(gamma.shape[0]))
@@ -176,9 +188,11 @@ def tree(gamma: np.ndarray, w_override: Optional[int] = None, _nodes: Optional[L
         w_candidates = [v for v in nodes if B[v] != set(nodes) - {v}]
         if not w_candidates:
             raise ValueError("Cannot find suitable w for decomposition")
+
         def w_score(v: int) -> Tuple[float, int]:
             min_gamma = min(gamma[idx_of[v], idx_of[u]] for u in nodes if u != v)
             return (float(min_gamma), v)  # tie-break by node id
+
         w = min(w_candidates, key=w_score)
 
     # Decompose
@@ -258,7 +272,8 @@ class PolyDAG:
         self.parents.setdefault(v, set())
 
     def add_edge(self, p: str, c: str) -> None:
-        self.add_node(p); self.add_node(c)
+        self.add_node(p)
+        self.add_node(c)
         self.children[p].add(c)
         self.parents[c].add(p)
 

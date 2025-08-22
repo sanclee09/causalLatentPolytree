@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from typing import List, Tuple, Dict, Set, Optional
 import random
@@ -8,9 +7,11 @@ from learn_with_hidden import observed_gamma_from_params
 
 # ---------- Prüfer utilities ----------
 
+
 def random_pruefer_sequence(n: int, rng: random.Random) -> List[int]:
     """Draw a random Prüfer sequence of length n-2 with labels 1..n."""
     return [rng.randint(1, n) for _ in range(n - 2)]
+
 
 def pruefer_to_tree(seq: List[int]) -> List[Tuple[int, int]]:
     """
@@ -23,6 +24,7 @@ def pruefer_to_tree(seq: List[int]) -> List[Tuple[int, int]]:
         degree[x] += 1
     # min-heap of leaves
     import heapq
+
     leaves = [i for i in range(1, n + 1) if degree[i] == 1]
     heapq.heapify(leaves)
 
@@ -40,7 +42,9 @@ def pruefer_to_tree(seq: List[int]) -> List[Tuple[int, int]]:
     edges.append((u, v))
     return edges
 
+
 # ---------- Orientation ----------
+
 
 def orient_tree_random_topo(
     edges_undirected: List[Tuple[int, int]],
@@ -59,7 +63,8 @@ def orient_tree_random_topo(
     # build undirected adjacency + degrees
     adj = {u: set() for u in nodes}
     for u, v in edges_undirected:
-        adj[u].add(v); adj[v].add(u)
+        adj[u].add(v)
+        adj[v].add(u)
 
     if force_hidden_root:
         candidates = [u for u in nodes if len(adj[u]) >= 2]
@@ -86,30 +91,38 @@ def orient_tree_random_topo(
             directed.append((p, v))
     return directed
 
+
 # ---------- Hidden/Observed rules ----------
 
-def outdeg_map(edges_dir: List[Tuple[int,int]]) -> Dict[int, int]:
+
+def outdeg_map(edges_dir: List[Tuple[int, int]]) -> Dict[int, int]:
     nodes = {x for e in edges_dir for x in e}
     od = {u: 0 for u in nodes}
     for u, v in edges_dir:
         od[u] += 1
     return od
 
-def thesis_hidden_nodes_root_only(edges_dir: List[Tuple[int,int]]) -> Set[str]:
+
+def thesis_hidden_nodes_root_only(edges_dir: List[Tuple[int, int]]) -> Set[str]:
     """Old rule: only roots (in-degree 0) with >=2 children are hidden."""
     nodes = {x for e in edges_dir for x in e}
     indeg = {u: 0 for u in nodes}
     ch: Dict[int, set] = {u: set() for u in nodes}
     for u, v in edges_dir:
-        indeg[v] += 1; ch[u].add(v)
+        indeg[v] += 1
+        ch[u].add(v)
     return {f"v{u}" for u in nodes if indeg[u] == 0 and len(ch[u]) >= 2}
 
-def branching_hidden_nodes(edges_dir: List[Tuple[int,int]]) -> Set[str]:
+
+def branching_hidden_nodes(edges_dir: List[Tuple[int, int]]) -> Set[str]:
     """New rule: any node with out-degree >= 2 is hidden (learnable)."""
     od = outdeg_map(edges_dir)
     return {f"v{u}" for u, d in od.items() if d >= 2}
 
-def choose_hidden_nodes(edges_dir: List[Tuple[int,int]], rule: str = "branching") -> Set[str]:
+
+def choose_hidden_nodes(
+    edges_dir: List[Tuple[int, int]], rule: str = "branching"
+) -> Set[str]:
     if rule == "branching":
         return branching_hidden_nodes(edges_dir)
     elif rule == "root":
@@ -117,12 +130,20 @@ def choose_hidden_nodes(edges_dir: List[Tuple[int,int]], rule: str = "branching"
     else:
         raise ValueError(f"Unknown hidden rule: {rule}")
 
+
 # ---------- Weighting & parameters ----------
 
-def random_weights(edges_dir: List[Tuple[int,int]], rng: random.Random, low: float=-1.0, high: float=1.0, avoid_small: float=0.1) -> Dict[Tuple[str,str], float]:
+
+def random_weights(
+    edges_dir: List[Tuple[int, int]],
+    rng: random.Random,
+    low: float = -1.0,
+    high: float = 1.0,
+    avoid_small: float = 0.1,
+) -> Dict[Tuple[str, str], float]:
     """Assign random edge weights in [low, high], avoiding magnitudes < avoid_small. Labels renamed to ('v{i}', 'v{j}')."""
-    weights: Dict[Tuple[str,str], float] = {}
-    for (u,v) in edges_dir:
+    weights: Dict[Tuple[str, str], float] = {}
+    for u, v in edges_dir:
         while True:
             w = rng.uniform(low, high)
             if abs(w) >= avoid_small:
@@ -130,18 +151,21 @@ def random_weights(edges_dir: List[Tuple[int,int]], rng: random.Random, low: flo
         weights[(f"v{u}", f"v{v}")] = w
     return weights
 
+
 def unit_sigmas_kappas(nodes: List[int]):
     sigmas = {f"v{i}": 1.0 for i in nodes}
     kappas = {f"v{i}": 1.0 for i in nodes}
     return sigmas, kappas
 
+
 # ---------- End-to-end ----------
+
 
 def sample_random_polytree_via_pruefer(
     n: int,
     seed: Optional[int] = None,
-    weights_range: Tuple[float,float]=(-1.0,1.0),
-    avoid_small: float=0.1,
+    weights_range: Tuple[float, float] = (-1.0, 1.0),
+    avoid_small: float = 0.1,
     ensure_at_least_one_hidden: bool = True,
     hidden_rule: str = "branching",  # 'branching' or 'root'
 ):
@@ -169,7 +193,13 @@ def sample_random_polytree_via_pruefer(
         directed = orient_tree_random_topo(undirected, rng, force_hidden_root=True)
 
         # parameters
-        weights = random_weights(directed, rng, low=weights_range[0], high=weights_range[1], avoid_small=avoid_small)
+        weights = random_weights(
+            directed,
+            rng,
+            low=weights_range[0],
+            high=weights_range[1],
+            avoid_small=avoid_small,
+        )
         nodes = sorted({x for e in directed for x in e})
         sigmas, kappas = unit_sigmas_kappas(nodes)
 
@@ -185,6 +215,7 @@ def sample_random_polytree_via_pruefer(
         weights, sigmas, kappas, hidden=hidden, auto_detect_hidden=False
     )
     from latent_polytree_truepoly import polytree_true
+
     P = polytree_true(Gamma_obs)
 
     def name(x: str) -> str:
@@ -202,6 +233,7 @@ def sample_random_polytree_via_pruefer(
         "Gamma_obs": Gamma_obs,
         "recovered_edges": edges_named,
     }
+
 
 if __name__ == "__main__":
     # Tiny smoke test
