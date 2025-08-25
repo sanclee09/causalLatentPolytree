@@ -13,7 +13,7 @@ import numpy as np
 import itertools
 
 # Numerical tolerance
-EPS = 1e-9
+EPS = 1e-7
 
 
 def _is_zero(x: float) -> bool:
@@ -30,16 +30,16 @@ def separation(gamma: np.ndarray) -> List[Set[int]]:
         added = True
         while added:
             added = False
-            for u in all_nodes:
-                if u in candidate:
+            for node_u in all_nodes:
+                if node_u in candidate:
                     continue
                 ok = True
                 for w in candidate:
-                    if gamma[u, w] < -EPS or gamma[w, u] < -EPS:
+                    if gamma[node_u, w] < -EPS or gamma[w, node_u] < -EPS:
                         ok = False
                         break
                 if ok:
-                    candidate.add(u)
+                    candidate.add(node_u)
                     added = True
 
         is_maximal = True
@@ -136,47 +136,61 @@ def tree(
         tree_obj.add_node(str(nodes[0]))
         return tree_obj
 
-    idx_of: Dict[int, int] = {v: i for i, v in enumerate(nodes)}
+    idx_of: Dict[int, int] = {node_v: i for i, node_v in enumerate(nodes)}
     B: Dict[int, Set[int]] = {}
 
-    # Build B_v with tolerance
-    for v in nodes:
-        i_v = idx_of[v]
-        other_vals = [gamma[i_v, idx_of[u]] for u in nodes if u != v]
-        if not other_vals:
-            B[v] = set()
+    # line 4 of ALgorithm 2 - Build B_v
+    for node_v in nodes:
+        v_index = idx_of[node_v]
+        discrepancies_of_v_th_row = [
+            gamma[v_index, idx_of[node_u]] for node_u in nodes if node_u != node_v
+        ]
+        if not discrepancies_of_v_th_row:
+            B[node_v] = set()
             continue
-        m = min(other_vals)
-        B[v] = {u for u in nodes if u != v and gamma[i_v, idx_of[u]] <= m + EPS}
+        min_discrepancy_of_v_th_row = min(discrepancies_of_v_th_row)
+        B[node_v] = {
+            node_u
+            for node_u in nodes
+            if node_u != node_v
+            and gamma[v_index, idx_of[node_u]] <= min_discrepancy_of_v_th_row + EPS
+        }
 
-    # Star case (with tolerance)
-    star_case = all(B[v] == set(nodes) - {v} for v in nodes if len(nodes) > 1)
+    # Star case
+    star_case = all(
+        B[node_v] == set(nodes) - {node_v} for node_v in nodes if len(nodes) > 1
+    )
     tree_obj = LatentTree()
 
-    if star_case:
+    if star_case:  # line 5 of Algorithm 2
         # Pick observed root if any row has a numerical zero entry
         root: Optional[int] = None
-        for v in nodes:
-            i_v = idx_of[v]
-            if any(_is_zero(gamma[i_v, idx_of[u]]) for u in nodes if u != v):
-                root = v
+        for node_v in nodes:
+            v_index = idx_of[node_v]
+            # line 6 of Algorithm 2 : if this is true, the tree is a star graph with node_v as the root in the center.
+            if any(
+                _is_zero(gamma[v_index, idx_of[node_u]])
+                for node_u in nodes
+                if node_u != node_v
+            ):
+                root = node_v
                 break
 
         if root is None:
-            # Latent root
+            # Latent root case - line 8 of Algorithm 2
             root_name = _new_latent()
             tree_obj.add_node(root_name)
-            for v in nodes:
-                tree_obj.add_node(str(v))
-                tree_obj.add_edge(root_name, str(v))
+            for node_v in nodes:
+                tree_obj.add_node(str(node_v))
+                tree_obj.add_edge(root_name, str(node_v))
         else:
-            # Observed root
+            # Observed root case - line 7 of Algorithm 2
             root_name = str(root)
             tree_obj.add_node(root_name)
-            for v in nodes:
-                if v != root:
-                    tree_obj.add_node(str(v))
-                    tree_obj.add_edge(root_name, str(v))
+            for node_v in nodes:
+                if node_v != root:
+                    tree_obj.add_node(str(node_v))
+                    tree_obj.add_edge(root_name, str(node_v))
         return tree_obj
 
     # Non-star: choose w deterministically
@@ -185,13 +199,19 @@ def tree(
             raise ValueError(f"w_override {w_override} not in current node set")
         w = w_override
     else:
-        w_candidates = [v for v in nodes if B[v] != set(nodes) - {v}]
+        w_candidates = [
+            node_v for node_v in nodes if B[node_v] != set(nodes) - {node_v}
+        ]
         if not w_candidates:
             raise ValueError("Cannot find suitable w for decomposition")
 
-        def w_score(v: int) -> Tuple[float, int]:
-            min_gamma = min(gamma[idx_of[v], idx_of[u]] for u in nodes if u != v)
-            return (float(min_gamma), v)  # tie-break by node id
+        def w_score(node_v: int) -> Tuple[float, int]:
+            min_gamma = min(
+                gamma[idx_of[node_v], idx_of[node_u]]
+                for node_u in nodes
+                if node_u != node_v
+            )
+            return (float(min_gamma), node_v)  # tie-break by node id
 
         w = min(w_candidates, key=w_score)
 
@@ -200,7 +220,7 @@ def tree(
     O2: List[int] = sorted(list(set(nodes) - B[w]))
 
     def restrict(nodes_sub: List[int]) -> np.ndarray:
-        idx_sub = [idx_of[u] for u in nodes_sub]
+        idx_sub = [idx_of[node_u] for node_u in nodes_sub]
         return gamma[np.ix_(idx_sub, idx_sub)]
 
     gamma1 = restrict(O1)
@@ -224,7 +244,7 @@ def _tree_merger(T1: LatentTree, T2: LatentTree, w_str: str) -> LatentTree:
     parent_of_w: Optional[str] = T2._parent.get(w_str)
 
     # Copy T2 structure, with w replaced by h
-    mapping = {u: (h if u == w_str else u) for u in T2.nodes}
+    mapping = {node_u: (h if node_u == w_str else node_u) for node_u in T2.nodes}
 
     for parent, children in T2._children.items():
         for child in children:
@@ -267,9 +287,9 @@ class PolyDAG:
         self.children: Dict[str, Set[str]] = {}
         self.parents: Dict[str, Set[str]] = {}
 
-    def add_node(self, v: str) -> None:
-        self.children.setdefault(v, set())
-        self.parents.setdefault(v, set())
+    def add_node(self, node_v: str) -> None:
+        self.children.setdefault(node_v, set())
+        self.parents.setdefault(node_v, set())
 
     def add_edge(self, p: str, c: str) -> None:
         self.add_node(p)

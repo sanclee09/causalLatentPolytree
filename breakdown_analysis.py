@@ -228,7 +228,7 @@ if __name__ == "__main__":
 
     results = breakdown_analysis(
         n_values=n_values,
-        K=25,  # Reduced for faster execution
+        K=30,  # Reduced for faster execution
         seed=42,
         out_dir="breakdown_analysis",
     )

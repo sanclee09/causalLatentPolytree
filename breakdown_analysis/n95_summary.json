@@ -1,14 +1,14 @@
 {
-  "avg_prec_lat": 0.9319368627299244,
-  "avg_rec_lat": 0.979558103788134,
-  "avg_f1_lat": 0.9445957425659118,
-  "avg_unmatched_rec_latents": 3.92,
-  "avg_n_obs": 69.84,
-  "avg_n_true_lat": 25.16,
-  "std_prec_lat": 0.1721352958480552,
-  "std_rec_lat": 0.04317467517157321,
-  "std_f1_lat": 0.13212013147980706,
-  "std_unmatched_rec_latents": 13.002948383603878,
-  "std_n_obs": 2.511307760244982,
-  "std_n_true_lat": 2.511307760244982
+  "avg_prec_lat": 0.9320504857601509,
+  "avg_rec_lat": 0.9723146799860466,
+  "avg_f1_lat": 0.9428758274297054,
+  "avg_unmatched_rec_latents": 3.466666666666667,
+  "avg_n_obs": 69.86666666666666,
+  "avg_n_true_lat": 25.133333333333333,
+  "std_prec_lat": 0.16093850552222191,
+  "std_rec_lat": 0.05425842865574469,
+  "std_f1_lat": 0.12531863005927799,
+  "std_unmatched_rec_latents": 11.90112522449854,
+  "std_n_obs": 2.315365962484092,
+  "std_n_true_lat": 2.3153659624840914
 }
