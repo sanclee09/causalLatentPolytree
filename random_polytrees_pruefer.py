@@ -102,32 +102,10 @@ def outdeg_map(edges_dir: List[Tuple[int, int]]) -> Dict[int, int]:
     return od
 
 
-def thesis_hidden_nodes_root_only(edges_dir: List[Tuple[int, int]]) -> Set[str]:
-    """Old rule: only roots (in-degree 0) with >=2 children are hidden."""
-    nodes = {x for e in edges_dir for x in e}
-    indeg = {u: 0 for u in nodes}
-    ch: Dict[int, set] = {u: set() for u in nodes}
-    for u, v in edges_dir:
-        indeg[v] += 1
-        ch[u].add(v)
-    return {f"v{u}" for u in nodes if indeg[u] == 0 and len(ch[u]) >= 2}
-
-
 def branching_hidden_nodes(edges_dir: List[Tuple[int, int]]) -> Set[str]:
     """New rule: any node with out-degree >= 2 is hidden (learnable)."""
     od = outdeg_map(edges_dir)
     return {f"v{u}" for u, d in od.items() if d >= 2}
-
-
-def choose_hidden_nodes(
-    edges_dir: List[Tuple[int, int]], rule: str = "branching"
-) -> Set[str]:
-    if rule == "branching":
-        return branching_hidden_nodes(edges_dir)
-    elif rule == "root":
-        return thesis_hidden_nodes_root_only(edges_dir)
-    else:
-        raise ValueError(f"Unknown hidden rule: {rule}")
 
 
 # ---------- Weighting & parameters ----------
@@ -166,7 +144,6 @@ def sample_random_polytree_via_pruefer(
     weights_range: Tuple[float, float] = (-1.0, 1.0),
     avoid_small: float = 0.1,
     ensure_at_least_one_hidden: bool = True,
-    hidden_rule: str = "branching",  # 'branching' or 'root'
 ):
     """
     Pipeline:
@@ -203,7 +180,7 @@ def sample_random_polytree_via_pruefer(
         sigmas, kappas = unit_sigmas_kappas(nodes)
 
         # hidden per rule
-        hidden = choose_hidden_nodes(directed, rule=hidden_rule)
+        hidden = branching_hidden_nodes(directed)
 
         if (not ensure_at_least_one_hidden) or hidden:
             break
@@ -236,7 +213,7 @@ def sample_random_polytree_via_pruefer(
 
 if __name__ == "__main__":
     # Tiny smoke test
-    out = sample_random_polytree_via_pruefer(n=7, seed=123, hidden_rule="branching")
+    out = sample_random_polytree_via_pruefer(n=7, seed=123)
     print("Directed edges:", out["edges_directed"])
     print("Hidden nodes:", out["hidden_nodes"])
     print("Observed nodes:", out["observed_nodes"])
