@@ -213,14 +213,14 @@ def sample_random_polytree_via_pruefer(
     Gamma_obs, observed_nodes, hidden_nodes = observed_gamma_from_params(
         weights, sigmas, kappas, hidden=hidden, auto_detect_hidden=False
     )
-    from latent_polytree_truepoly import polytree_true
+    from latent_polytree_truepoly import get_polytree_algo3
 
-    P = polytree_true(Gamma_obs)
+    observed_polytree = get_polytree_algo3(Gamma_obs)
 
     def name(x: str) -> str:
         return x if x.startswith("h") else observed_nodes[int(x)]
 
-    edges_named = [(name(p), name(c)) for (p, c) in P.edges]
+    edges_named = [(name(p), name(c)) for (p, c) in observed_polytree.edges]
     return {
         "edges_undirected": undirected,
         "edges_directed": [(f"v{u}", f"v{v}") for (u, v) in directed],

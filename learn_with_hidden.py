@@ -12,7 +12,7 @@ from typing import Dict, Tuple, List, Iterable, Optional, Set
 import numpy as np
 
 from polytree_discrepancy import Polytree, compute_discrepancy_fast
-from latent_polytree_truepoly import polytree_true
+from latent_polytree_truepoly import get_polytree_algo3
 
 # -------- Hidden-node detection --------
 
@@ -58,7 +58,9 @@ def observed_gamma_from_params(
 
     observed_nodes = [n for n in order if n not in hidden_nodes]
     obs_nodes_index = [order.index(n) for n in observed_nodes]
-    observed_discrepancy_matrix = full_discrepancy_matrix[np.ix_(obs_nodes_index, obs_nodes_index)]
+    observed_discrepancy_matrix = full_discrepancy_matrix[
+        np.ix_(obs_nodes_index, obs_nodes_index)
+    ]
     return observed_discrepancy_matrix, observed_nodes, sorted(hidden_nodes)
 
 
@@ -83,22 +85,26 @@ def learn_from_params_with_auto_hidden(
     Returns:
       observed_discrepancy_matrix (np.ndarray), observed_nodes (List[str]), hidden_nodes (List[str]), edges_named (List[Tuple[str,str]])
     """
-    observed_discrepancy_matrix, observed_nodes, hidden_nodes = observed_gamma_from_params(
-        edges,
-        sigmas,
-        kappas,
-        hidden=hidden,
-        auto_detect_hidden=auto_detect_hidden,
-        min_outdegree=min_outdegree,
+    observed_discrepancy_matrix, observed_nodes, hidden_nodes = (
+        observed_gamma_from_params(
+            edges,
+            sigmas,
+            kappas,
+            hidden=hidden,
+            auto_detect_hidden=auto_detect_hidden,
+            min_outdegree=min_outdegree,
+        )
     )
-    P = polytree_true(observed_discrepancy_matrix)
+    observed_polytree = get_polytree_algo3(observed_discrepancy_matrix)
 
     def name(x: str) -> str:
         if x.startswith("h"):
             return x
         return observed_nodes[int(x)]
 
-    edges_named = [(name(p), name(c)) for (p, c) in P.edges]
+    edges_named = [
+        (name(parent), name(child)) for (parent, child) in observed_polytree.edges
+    ]
     return observed_discrepancy_matrix, observed_nodes, hidden_nodes, edges_named
 
 

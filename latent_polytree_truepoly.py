@@ -288,31 +288,35 @@ class PolyDAG:
         self.children.setdefault(node_v, set())
         self.parents.setdefault(node_v, set())
 
-    def add_edge(self, p: str, c: str) -> None:
-        self.add_node(p)
-        self.add_node(c)
-        self.children[p].add(c)
-        self.parents[c].add(p)
+    def add_edge(self, parent: str, child: str) -> None:
+        self.add_node(parent)
+        self.add_node(child)
+        self.children[parent].add(child)
+        self.parents[child].add(parent)
 
     @property
     def nodes(self) -> List[str]:
         s = set(self.children.keys())
-        for cs in self.children.values():
-            s.update(cs)
+        for children in self.children.values():
+            s.update(children)
         return sorted(s)
 
     @property
     def edges(self) -> List[Tuple[str, str]]:
-        return [(p, c) for p, cs in self.children.items() for c in cs]
+        return [
+            (parent, child)
+            for parent, children in self.children.items()
+            for child in children
+        ]
 
 
-def polytree_true(gamma: np.ndarray) -> PolyDAG:
-    groups = separation(gamma)
-    groups = sorted(groups, key=lambda g: (-len(g), sorted(g)))
-    P = PolyDAG()
-    for G in groups:
+def get_polytree_algo3(gamma: np.ndarray) -> PolyDAG:
+    sub_trees = separation(gamma)
+    sub_trees = sorted(sub_trees, key=lambda g: (-len(g), sorted(g)))
+    polytree = PolyDAG()
+    for G in sub_trees:
         sub = sorted(G)
         T = tree(gamma[np.ix_(sub, sub)], _nodes=sub)
-        for p, c in T.edges:
-            P.add_edge(p, c)
-    return P
+        for parent, child in T.edges:
+            polytree.add_edge(parent, child)
+    return polytree
