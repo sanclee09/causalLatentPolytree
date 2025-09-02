@@ -3,7 +3,7 @@ from typing import Dict, Tuple, List, Set, Optional
 import random
 import numpy as np
 
-from random_polytrees_pruefer import sample_random_polytree_via_pruefer
+from random_polytrees_pruefer import get_random_polytree_via_pruefer
 
 
 def jaccard(a: Set[str], b: Set[str]) -> float:
@@ -43,7 +43,7 @@ def greedy_match_true_to_recovered(
 
 
 def evaluate_one(seed: int, n: int = 8) -> Dict[str, float]:
-    res = sample_random_polytree_via_pruefer(n=n, seed=seed)
+    res = get_random_polytree_via_pruefer(n=n, seed=seed)
     obs = set(res["observed_nodes"])
     hid_true = set(res["hidden_nodes"])
     edges_true_dir = set(res["edges_directed"])

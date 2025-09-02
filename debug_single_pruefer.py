@@ -1,40 +1,48 @@
-from random_polytrees_pruefer import sample_random_polytree_via_pruefer
+from random_polytrees_pruefer import get_random_polytree_via_pruefer
 from polytree_discrepancy import Polytree, compute_discrepancy_fast
 import numpy as np
 
 
 def main(n=20, seed=2025081314):
-    out = sample_random_polytree_via_pruefer(n=n, seed=seed)
+    random_polytree_sample = get_random_polytree_via_pruefer(n=n, seed=seed)
 
     print("=== Ground truth (from Prüfer) ===")
-    print("Directed edges:", out["edges_directed"])
-    print("Hidden (thesis rule):", out["hidden_nodes"])
-    print("Observed:", out["observed_nodes"])
+    print("Directed edges:", random_polytree_sample["edges_directed"])
+    print("Hidden (thesis rule):", random_polytree_sample["hidden_nodes"])
+    print("Observed:", random_polytree_sample["observed_nodes"])
 
     print("\n=== Γ_obs (population, exact) ===")
-    G = out["Gamma_obs"]
-    for row in G:
+    observed_discrepancy_matrix = random_polytree_sample["Gamma_obs"]
+    for row in observed_discrepancy_matrix:
         print("  ", " ".join(f"{x:6.3f}" for x in row))
 
     print("\n=== Learned polytree from Γ_obs ===")
-    print("Recovered edges:", sorted(out["recovered_edges"]))
+    print("Recovered edges:", sorted(random_polytree_sample["recovered_edges"]))
 
     # Sanity: recompute population Γ from params and confirm it matches
-    poly = Polytree(out["weights"], out["sigmas"], out["kappas"])
-    Gamma_full = compute_discrepancy_fast(poly)
-    obs = out["observed_nodes"]
-    idx = [poly.nodes.index(v) for v in obs]
-    Gamma_obs_check = Gamma_full[np.ix_(idx, idx)]
-    same = (abs(Gamma_obs_check - G) < 1e-9).all()
+    polytree = Polytree(
+        random_polytree_sample["weights"],
+        random_polytree_sample["sigmas"],
+        random_polytree_sample["kappas"],
+    )
+    full_discrepancy_matrix = compute_discrepancy_fast(polytree)
+    observed_nodes = random_polytree_sample["observed_nodes"]
+    observed_nodes_index = [polytree.nodes.index(v) for v in observed_nodes]
+    Gamma_obs_check = full_discrepancy_matrix[
+        np.ix_(observed_nodes_index, observed_nodes_index)
+    ]
+    same = (abs(Gamma_obs_check - observed_discrepancy_matrix) < 1e-9).all()
     print("\nPopulation Γ re-check equals returned Γ_obs:", same)
 
     # Quick correctness check for this configuration
     true_obs_edges = {
-        (u, v) for (u, v) in out["edges_directed"] if u in obs and v in obs
+        (u, v)
+        for (u, v) in random_polytree_sample["edges_directed"]
+        if u in observed_nodes and v in observed_nodes
     }
     rec_obs_edges = {
         (u, v)
-        for (u, v) in out["recovered_edges"]
+        for (u, v) in random_polytree_sample["recovered_edges"]
         if (not u.startswith("h")) and (not v.startswith("h"))
     }
 
@@ -45,13 +53,13 @@ def main(n=20, seed=2025081314):
         print("  Extra observed edges:", sorted(rec_obs_edges - true_obs_edges))
 
     # Latent-to-observed check: true hidden parents should map to a recovered latent with the same children set
-    true_hidden = set(out["hidden_nodes"])
+    true_hidden = set(random_polytree_sample["hidden_nodes"])
     true_latent_children = {}
-    for u, v in out["edges_directed"]:
-        if u in true_hidden and v in obs:
+    for u, v in random_polytree_sample["edges_directed"]:
+        if u in true_hidden and v in observed_nodes:
             true_latent_children.setdefault(u, set()).add(v)
     rec_latent_children = {}
-    for u, v in out["recovered_edges"]:
+    for u, v in random_polytree_sample["recovered_edges"]:
         if u.startswith("h") and (not v.startswith("h")):
             rec_latent_children.setdefault(u, set()).add(v)
 

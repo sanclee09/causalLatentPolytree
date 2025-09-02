@@ -138,7 +138,7 @@ def unit_sigmas_kappas(nodes: List[int]):
 # ---------- End-to-end ----------
 
 
-def sample_random_polytree_via_pruefer(
+def get_random_polytree_via_pruefer(
     n: int,
     seed: Optional[int] = None,
     weights_range: Tuple[float, float] = (-1.0, 1.0),
@@ -213,7 +213,7 @@ def sample_random_polytree_via_pruefer(
 
 if __name__ == "__main__":
     # Tiny smoke test
-    out = sample_random_polytree_via_pruefer(n=7, seed=123)
+    out = get_random_polytree_via_pruefer(n=7, seed=123)
     print("Directed edges:", out["edges_directed"])
     print("Hidden nodes:", out["hidden_nodes"])
     print("Observed nodes:", out["observed_nodes"])
