@@ -11,7 +11,7 @@ from typing import Dict, Tuple, List, Iterable, Optional, Set
 
 import numpy as np
 
-from polytree_discrepancy import Polytree, compute_discrepancy, compute_discrepancy_fast
+from polytree_discrepancy import Polytree, compute_discrepancy_fast
 from latent_polytree_truepoly import polytree_true
 
 # -------- Hidden-node detection --------
@@ -46,10 +46,10 @@ def observed_gamma_from_params(
     Build full Γ from (edges, sigmas, kappas), then restrict to observed nodes.
 
     Returns:
-        (Gamma_obs, observed_nodes, hidden_nodes)
+        (observed_discrepancy_matrix, observed_nodes, hidden_nodes)
     """
     poly = Polytree(edges, sigmas, kappas)
-    Gamma_full = compute_discrepancy_fast(poly)
+    full_discrepancy_matrix = compute_discrepancy_fast(poly)
     order = poly.nodes
 
     hidden_nodes: Set[str] = set(hidden or [])
@@ -57,9 +57,9 @@ def observed_gamma_from_params(
         hidden_nodes |= detect_learnable_nodes(edges, min_outdegree=min_outdegree)
 
     observed_nodes = [n for n in order if n not in hidden_nodes]
-    idx = [order.index(n) for n in observed_nodes]
-    Gamma_obs = Gamma_full[np.ix_(idx, idx)]
-    return Gamma_obs, observed_nodes, sorted(hidden_nodes)
+    obs_nodes_index = [order.index(n) for n in observed_nodes]
+    observed_discrepancy_matrix = full_discrepancy_matrix[np.ix_(obs_nodes_index, obs_nodes_index)]
+    return observed_discrepancy_matrix, observed_nodes, sorted(hidden_nodes)
 
 
 # -------- End-to-end learning --------
@@ -81,9 +81,9 @@ def learn_from_params_with_auto_hidden(
       - map result indices back to observed node names
 
     Returns:
-      Gamma_obs (np.ndarray), observed_nodes (List[str]), hidden_nodes (List[str]), edges_named (List[Tuple[str,str]])
+      observed_discrepancy_matrix (np.ndarray), observed_nodes (List[str]), hidden_nodes (List[str]), edges_named (List[Tuple[str,str]])
     """
-    Gamma_obs, observed_nodes, hidden_nodes = observed_gamma_from_params(
+    observed_discrepancy_matrix, observed_nodes, hidden_nodes = observed_gamma_from_params(
         edges,
         sigmas,
         kappas,
@@ -91,7 +91,7 @@ def learn_from_params_with_auto_hidden(
         auto_detect_hidden=auto_detect_hidden,
         min_outdegree=min_outdegree,
     )
-    P = polytree_true(Gamma_obs)
+    P = polytree_true(observed_discrepancy_matrix)
 
     def name(x: str) -> str:
         if x.startswith("h"):
@@ -99,7 +99,7 @@ def learn_from_params_with_auto_hidden(
         return observed_nodes[int(x)]
 
     edges_named = [(name(p), name(c)) for (p, c) in P.edges]
-    return Gamma_obs, observed_nodes, hidden_nodes, edges_named
+    return observed_discrepancy_matrix, observed_nodes, hidden_nodes, edges_named
 
 
 # ---- Demo ----
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     sigmas = {"v1": 1.0, "v2": 1.0, "v3": 1.0, "v4": 1.0}
     kappas = {"v1": 1.0, "v2": 1.0, "v3": 1.0, "v4": 1.0}
 
-    Gamma_obs, observed_nodes, hidden_nodes, edges_named = (
+    observed_discrepancy_matrix, observed_nodes, hidden_nodes, edges_named = (
         learn_from_params_with_auto_hidden(
             edges, sigmas, kappas, hidden=None, auto_detect_hidden=True, min_outdegree=2
         )

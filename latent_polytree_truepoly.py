@@ -119,7 +119,6 @@ def _new_latent() -> str:
 
 def tree(
     gamma: np.ndarray,
-    w_override: Optional[int] = None,
     _nodes: Optional[List[int]] = None,
 ) -> LatentTree:
     """Algorithm 2 (Tree) with deterministic, stable behavior."""
@@ -139,15 +138,12 @@ def tree(
     idx_of: Dict[int, int] = {node_v: i for i, node_v in enumerate(nodes)}
     B: Dict[int, Set[int]] = {}
 
-    # line 4 of ALgorithm 2 - Build B_v
+    # Build B_v : line 4 of ALgorithm 2
     for node_v in nodes:
         v_index = idx_of[node_v]
         discrepancies_of_v_th_row = [
             gamma[v_index, idx_of[node_u]] for node_u in nodes if node_u != node_v
         ]
-        if not discrepancies_of_v_th_row:
-            B[node_v] = set()
-            continue
         min_discrepancy_of_v_th_row = min(discrepancies_of_v_th_row)
         B[node_v] = {
             node_u
@@ -163,123 +159,124 @@ def tree(
     tree_obj = LatentTree()
 
     if star_case:  # line 5 of Algorithm 2
-        # Pick observed root if any row has a numerical zero entry
         root: Optional[int] = None
-        for node_v in nodes:
-            v_index = idx_of[node_v]
-            # line 6 of Algorithm 2 : if this is true, the tree is a star graph with node_v as the root in the center.
+        # line 6 of Algorithm 2 : if this is true, the tree is a star graph with node_w as the root in the center.
+        for node_w in nodes:
+            w_index = idx_of[node_w]
             if any(
-                _is_zero(gamma[v_index, idx_of[node_u]])
+                _is_zero(gamma[w_index, idx_of[node_u]])
                 for node_u in nodes
-                if node_u != node_v
+                if node_u != node_w
             ):
-                root = node_v
+                root = node_w
                 break
 
-        if root is None:
-            # Latent root case - line 8 of Algorithm 2
-            root_name = _new_latent()
-            tree_obj.add_node(root_name)
-            for node_v in nodes:
-                tree_obj.add_node(str(node_v))
-                tree_obj.add_edge(root_name, str(node_v))
-        else:
-            # Observed root case - line 7 of Algorithm 2
+        if root is not None:
+            # Observed root case - line 7 of Algorithm 2 : return a star graph with the observed root.
             root_name = str(root)
             tree_obj.add_node(root_name)
-            for node_v in nodes:
-                if node_v != root:
-                    tree_obj.add_node(str(node_v))
-                    tree_obj.add_edge(root_name, str(node_v))
+            for node in nodes:
+                if node != root:
+                    tree_obj.add_node(str(node))
+                    tree_obj.add_edge(root_name, str(node))
+
+        else:
+            # Latent root case - line 8 of Algorithm 2 : return a star graph with a latent root.
+            root_name = _new_latent()
+            tree_obj.add_node(root_name)
+            for node in nodes:
+                tree_obj.add_node(str(node))
+                tree_obj.add_edge(root_name, str(node))
         return tree_obj
 
-    # Non-star: choose w deterministically
-    if w_override is not None:
-        if w_override not in nodes:
-            raise ValueError(f"w_override {w_override} not in current node set")
-        w = w_override
-    else:
-        w_candidates = [
-            node_v for node_v in nodes if B[node_v] != set(nodes) - {node_v}
-        ]
-        if not w_candidates:
-            raise ValueError("Cannot find suitable w for decomposition")
+    # Non-star: line 11 of Algorithm 2
+    w_candidates = [node for node in nodes if B[node] != set(nodes) - {node}]
+    if not w_candidates:
+        raise ValueError("Cannot find suitable w for decomposition")
 
-        def w_score(node_v: int) -> Tuple[float, int]:
-            min_gamma = min(
-                gamma[idx_of[node_v], idx_of[node_u]]
-                for node_u in nodes
-                if node_u != node_v
-            )
-            return (float(min_gamma), node_v)  # tie-break by node id
+    # not sure if this is necessary.
+    def w_score(node: int) -> Tuple[float, int]:
+        min_gamma = min(
+            gamma[idx_of[node], idx_of[node_u]] for node_u in nodes if node_u != node
+        )
+        return (float(min_gamma), node)  # tie-break by node id
 
-        w = min(w_candidates, key=w_score)
+    w = min(w_candidates, key=w_score)
 
-    # Decompose
+    # Decompose - prepare for line 13 and 14 of Algorithm 2
     O1: List[int] = sorted(list(B[w] | {w}))
     O2: List[int] = sorted(list(set(nodes) - B[w]))
 
-    def restrict(nodes_sub: List[int]) -> np.ndarray:
-        idx_sub = [idx_of[node_u] for node_u in nodes_sub]
-        return gamma[np.ix_(idx_sub, idx_sub)]
+    def _get_sub_discrepancy_matrix(sub_nodes: List[int]) -> np.ndarray:
+        sub_nodes_indexes = [idx_of[sub_node] for sub_node in sub_nodes]
+        sub_gamma_matrix = gamma[np.ix_(sub_nodes_indexes, sub_nodes_indexes)]
+        return sub_gamma_matrix
 
-    gamma1 = restrict(O1)
-    gamma2 = restrict(O2)
+    gamma1 = _get_sub_discrepancy_matrix(O1)
+    gamma2 = _get_sub_discrepancy_matrix(O2)
 
-    T1 = tree(gamma1, w_override=None, _nodes=O1)
-    T2 = tree(gamma2, w_override=None, _nodes=O2)
+    T1 = tree(gamma1, _nodes=O1)
+    T2 = tree(gamma2, _nodes=O2)
 
-    return _tree_merger(T1, T2, str(w))
+    return _get_connected_directed_trees(T1, T2, str(w))
 
 
-def _tree_merger(T1: LatentTree, T2: LatentTree, w_str: str) -> LatentTree:
+def _get_connected_directed_trees(
+    T1: LatentTree, T2: LatentTree, w_str: str
+) -> LatentTree:
     """
     Merge T1 into T2 by replacing 'w' in T2 with a new latent 'h' and attaching T1.
 
     Fix: If w is the root of T2, attach as r1 -> h (not h -> r1).
     """
     h = _new_latent()
-    new_tree = LatentTree()
+    connected_T1_and_T2 = LatentTree()
 
     parent_of_w: Optional[str] = T2._parent.get(w_str)
 
-    # Copy T2 structure, with w replaced by h
-    mapping = {node_u: (h if node_u == w_str else node_u) for node_u in T2.nodes}
+    # Copy T2 structure, with w replaced by h : line 15 of Algorithm 2
+    substituted_T2_w_by_h = {
+        node_in_T2: (h if node_in_T2 == w_str else node_in_T2)
+        for node_in_T2 in T2.nodes
+    }
 
     for parent, children in T2._children.items():
         for child in children:
             if child == w_str:
                 continue  # skip edges into w
-            p_mapped = mapping[parent]
-            c_mapped = mapping[child]
-            new_tree.add_node(p_mapped)
-            new_tree.add_node(c_mapped)
-            new_tree.add_edge(p_mapped, c_mapped)
+            parent_node_after_substitution = substituted_T2_w_by_h[parent]
+            child_node_after_substitution = substituted_T2_w_by_h[child]
+            connected_T1_and_T2.add_node(parent_node_after_substitution)
+            connected_T1_and_T2.add_node(child_node_after_substitution)
+            connected_T1_and_T2.add_edge(
+                parent_node_after_substitution, child_node_after_substitution
+            )
 
-    # Copy T1 into new_tree
+    # Copy T1 into connected_T1_and_T2
     for parent, children in T1._children.items():
         for child in children:
-            new_tree.add_node(parent)
-            new_tree.add_node(child)
-            new_tree.add_edge(parent, child)
+            connected_T1_and_T2.add_node(parent)
+            connected_T1_and_T2.add_node(child)
+            connected_T1_and_T2.add_edge(parent, child)
 
     # Connect
     if parent_of_w is None:
         # w was root of T2 -> attach T1.root -> h   (FIXED orientation)
-        new_tree.add_node(h)
+        connected_T1_and_T2.add_node(h)
         if T1.nodes:
             r1 = T1.root
-            new_tree.add_edge(r1, h)
+            connected_T1_and_T2.add_edge(r1, h)
     else:
+        assert not T2._children.get(w_str, set()), "Expected w to be a leaf in T2"
         # Connect parent_of_w (mapped) -> T1.root
-        p_mapped = mapping[parent_of_w]
+        parent_node_after_substitution = substituted_T2_w_by_h[parent_of_w]
         if T1.nodes:
             r1 = T1.root
-            new_tree.add_node(p_mapped)
-            new_tree.add_node(r1)
-            new_tree.add_edge(p_mapped, r1)
+            connected_T1_and_T2.add_node(parent_node_after_substitution)
+            connected_T1_and_T2.add_node(r1)
+            connected_T1_and_T2.add_edge(parent_node_after_substitution, r1)
 
-    return new_tree
+    return connected_T1_and_T2
 
 
 class PolyDAG:

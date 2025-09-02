@@ -1,9 +1,9 @@
 from random_polytrees_pruefer import sample_random_polytree_via_pruefer
-from polytree_discrepancy import compute_discrepancy, Polytree, compute_discrepancy_fast
+from polytree_discrepancy import Polytree, compute_discrepancy_fast
 import numpy as np
 
 
-def main(n=6, seed=2025081314):
+def main(n=20, seed=2025081314):
     out = sample_random_polytree_via_pruefer(n=n, seed=seed)
 
     print("=== Ground truth (from Prüfer) ===")

@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import List, Tuple, Dict, Set, Optional
 import random
 
-from polytree_discrepancy import Polytree, compute_discrepancy
 from learn_with_hidden import observed_gamma_from_params
 
 # ---------- Prüfer utilities ----------
