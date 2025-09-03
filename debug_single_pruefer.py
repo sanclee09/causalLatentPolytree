@@ -3,7 +3,7 @@ from polytree_discrepancy import Polytree, compute_discrepancy_fast
 import numpy as np
 
 
-def main(n=20, seed=2025081314):
+def main(n=95, seed=2025081315):
     random_polytree_sample = get_random_polytree_via_pruefer(n=n, seed=seed)
 
     print("=== Ground truth (from Prüfer) ===")

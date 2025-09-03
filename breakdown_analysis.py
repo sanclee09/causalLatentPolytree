@@ -8,12 +8,10 @@ as a function of graph size n.
 
 import time
 import json
-import csv
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 from eval_runner_pruefer import run_experiments
 
