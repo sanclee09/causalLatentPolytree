@@ -116,7 +116,7 @@ def random_weights(
     rng: random.Random,
     low: float = -1.0,
     high: float = 1.0,
-    avoid_small: float = 0.1,
+    avoid_small: float = 0.8,
 ) -> Dict[Tuple[str, str], float]:
     """Assign random edge weights in [low, high], avoiding magnitudes < avoid_small. Labels renamed to ('v{i}', 'v{j}')."""
     weights: Dict[Tuple[str, str], float] = {}
@@ -135,6 +135,73 @@ def unit_sigmas_kappas(nodes: List[int]):
     return sigmas, kappas
 
 
+def sample_sigmas_kappas(
+    nodes: List[int],
+    rng: random.Random,
+    family: str = "gamma",  # "exp" | "gamma" | "lognormal"
+    gamma_k_range: Tuple[float, float] = (1.2, 9.0),  # shape range if family="gamma"
+) -> Tuple[Dict[str, float], Dict[str, float]]:
+    """
+    Return per-node standard deviations (sigmas) and third cumulants (kappas)
+    drawn from a non-Gaussian noise family. We standardize to Var=1 so that
+    edge-weight scale carries the signal, while κ₃ controls skew/asymmetry.
+
+    families:
+      - "exp"  : centered exponential (standardized) => σ=1, |κ₃|=2
+      - "gamma": centered gamma with random shape k  => σ=1, |κ₃|=2/√k
+      - "lognormal": centered lognormal (standardized) => σ=1, |κ₃| depends on μ, s (heavy tails!)
+    """
+    sigmas: Dict[str, float] = {}
+    kappas: Dict[str, float] = {}
+
+    for i in nodes:
+        name = f"v{i}"
+
+        if family == "exp":
+            # Y = Exp(λ) - 1/λ has Var=1/λ² and κ₃=2/λ³. After standardizing X=λY:
+            # Var(X)=1 and κ₃(X)=2. Randomize sign to diversify.
+            sigmas[name] = 1.0
+            kappa_mag = 2.0
+            kappas[name] = kappa_mag if rng.random() < 0.5 else -kappa_mag
+
+        elif family == "gamma":
+            # Centered Gamma(k,θ) with Var=kθ², κ₃=2kθ³. Standardize to Var=1:
+            # choose shape k in range, set θ=1/√k -> Var=1, κ₃=2/√k
+            k = rng.uniform(*gamma_k_range)
+            sigmas[name] = 1.0
+            kappa_mag = 2.0 / (k**0.5)
+            kappas[name] = kappa_mag if rng.random() < 0.5 else -kappa_mag
+
+        elif family == "lognormal":
+            # Let Z~N(0,s²), L=exp(Z). Choose s in [0.3, 0.8] for moderate tails.
+            # Center: Y=L - E[L], then standardize X=Y/SD(Y) -> Var=1.
+            # κ₃/σ³ (skewness) grows quickly with s; clamp to avoid extreme dynamic range.
+            s = rng.uniform(0.3, 0.8)
+            # For lognormal with μ=0:
+            import math
+
+            m1 = math.exp(0.5 * s * s)
+            var = (math.exp(s * s) - 1.0) * math.exp(s * s)
+            sd = var**0.5
+            # third central moment of lognormal with μ=0:
+            mu3 = (
+                math.exp(3 * s * s)
+                - 3 * math.exp(2 * s * s)
+                + 2 * math.exp(1.5 * s * s)
+            ) * math.exp(1.5 * s * s)
+            # After centering & standardizing, σ=1 and κ₃ = mu3 / sd^3
+            sigmas[name] = 1.0
+            kappa_mag = mu3 / (sd**3)
+            # cap very large values to keep Γ well-conditioned
+            kappa_mag = max(min(kappa_mag, 6.0), 0.4)
+            kappas[name] = kappa_mag if rng.random() < 0.5 else -kappa_mag
+
+        else:
+            raise ValueError(f"Unknown family '{family}'")
+
+    return sigmas, kappas
+
+
 # ---------- End-to-end ----------
 
 
@@ -142,7 +209,7 @@ def get_random_polytree_via_pruefer(
     n: int,
     seed: Optional[int] = None,
     weights_range: Tuple[float, float] = (-1.0, 1.0),
-    avoid_small: float = 0.1,
+    avoid_small: float = 0.8,
     ensure_at_least_one_hidden: bool = True,
 ):
     """
@@ -177,7 +244,7 @@ def get_random_polytree_via_pruefer(
             avoid_small=avoid_small,
         )
         nodes = sorted({x for e in directed for x in e})
-        sigmas, kappas = unit_sigmas_kappas(nodes)
+        sigmas, kappas = sample_sigmas_kappas(nodes, rng, family="gamma")
 
         # hidden per rule
         hidden = branching_hidden_nodes(directed)

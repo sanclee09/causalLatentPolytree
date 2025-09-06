@@ -1,0 +1,14 @@
+{
+  "avg_prec_lat": 0.9985469860489602,
+  "avg_rec_lat": 1.0,
+  "avg_f1_lat": 0.9992654675581505,
+  "avg_unmatched_rec_latents": 0.16666666666666666,
+  "avg_n_obs": 220.43333333333334,
+  "avg_n_true_lat": 79.56666666666666,
+  "std_prec_lat": 0.005537238535309834,
+  "std_rec_lat": 0.0,
+  "std_f1_lat": 0.0027992882581514074,
+  "std_unmatched_rec_latents": 0.6477192523656046,
+  "std_n_obs": 4.882645787383872,
+  "std_n_true_lat": 4.882645787383872
+}

@@ -1,14 +1,14 @@
 {
-  "avg_prec_lat": 0.9916618357487922,
-  "avg_rec_lat": 0.9878803418803418,
-  "avg_f1_lat": 0.9897058823529412,
-  "avg_unmatched_rec_latents": 0.06666666666666667,
+  "avg_prec_lat": 1.0,
+  "avg_rec_lat": 1.0,
+  "avg_f1_lat": 1.0,
+  "avg_unmatched_rec_latents": 0.0,
   "avg_n_obs": 36.833333333333336,
   "avg_n_true_lat": 13.166666666666666,
-  "std_prec_lat": 0.025438038844211995,
-  "std_rec_lat": 0.03387181082394624,
-  "std_f1_lat": 0.029117299884330924,
-  "std_unmatched_rec_latents": 0.2537081317024625,
+  "std_prec_lat": 0.0,
+  "std_rec_lat": 0.0,
+  "std_f1_lat": 0.0,
+  "std_unmatched_rec_latents": 0.0,
   "std_n_obs": 1.5774998406105896,
   "std_n_true_lat": 1.57749984061059
 }
