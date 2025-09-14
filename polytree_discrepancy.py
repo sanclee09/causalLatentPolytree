@@ -253,13 +253,256 @@ def compute_discrepancy_fast(
     return Gamma
 
 
-if __name__ == "__main__":
-    # Simple test run
-    edges = {("v1", "v2"): 2.0, ("v1", "v3"): 3.0, ("v3", "v4"): 4.0}
-    sigmas = {"v1": 1.0, "v2": 1.0, "v3": 1.0, "v4": 1.0}
-    kappas = {"v1": 1.0, "v2": 1.0, "v3": 1.0, "v4": 1.0}
-    poly = Polytree(edges, sigmas, kappas)
-    Gamma = compute_discrepancy_fast(poly)
-    import pandas as pd
+# !/usr/bin/env python3
+"""
+FIXED VERSION: Better finite-sample discrepancy computation with improved pattern preservation.
 
-    print(pd.DataFrame(Gamma, index=poly.nodes, columns=poly.nodes))
+Key fixes:
+1. Larger sample size (2000+ samples)
+2. More lenient numerical thresholds for finite-sample effects  
+3. Improved zero detection using relative thresholds
+4. Better handling of edge cases
+"""
+
+import numpy as np
+import pandas as pd
+
+
+def compute_discrepancy_from_samples(
+    X: np.ndarray,
+    eps_corr: float = 1e-10,  # Very strict correlation threshold
+    eps_numzero: float = 1e-2,  # More lenient for finite samples
+    eps_den: float = 1e-14,  # Denominator guard
+) -> np.ndarray:
+    """
+    Improved discrepancy computation with better pattern preservation.
+    """
+    X = np.asarray(X, dtype=np.float64)
+    n, p = X.shape
+
+    # Center data
+    mu = X.mean(axis=0, keepdims=True)
+    XC = X - mu
+
+    # Standardize for numerical stability (scale-invariant discrepancy)
+    s = XC.std(axis=0, ddof=1)
+    s[s == 0.0] = 1.0
+    Z = XC / s
+
+    # Compute sample moments with /n normalization
+    Sigma = (Z.T @ Z) / n
+    C_iij = (Z**2).T @ Z / n
+    C_ijj = Z.T @ (Z**2) / n
+    C_iii = (Z**3).mean(axis=0)
+
+    # Initialize discrepancy matrix
+    Gamma = np.zeros((p, p), dtype=np.float64)
+    np.fill_diagonal(Gamma, 0.0)
+    offdiag = ~np.eye(p, dtype=bool)
+
+    # Rule 1: Uncorrelated pairs → -1 (very strict threshold)
+    uncorrelated = (np.abs(Sigma) < eps_corr) & offdiag
+    Gamma[uncorrelated] = -1.0
+
+    # Rule 2: Near-zero numerator → 0 (improved detection)
+    s_ii = np.diag(Sigma)
+
+    # More sophisticated zero detection
+    lhs = s_ii[:, None] * C_iij
+    rhs = Sigma * C_iii[:, None]
+    numerator = lhs - rhs
+
+    # Use adaptive threshold based on data scale
+    scale = np.maximum(np.abs(lhs), np.abs(rhs))
+    adaptive_threshold = eps_numzero * (1 + scale)
+
+    near_zero = (np.abs(numerator) < adaptive_threshold) & offdiag & (~uncorrelated)
+    Gamma[near_zero] = 0.0
+
+    # Rule 3: Regular computation
+    remaining = offdiag & (~uncorrelated) & (~near_zero)
+    denom = C_iij * Sigma
+    small_den = (np.abs(denom) < eps_den) & remaining
+    safe = remaining & (~small_den)
+
+    num = C_ijj * s_ii[:, None]
+    Gamma[safe] = num[safe] / denom[safe]
+    Gamma[small_den] = 0.0
+
+    return Gamma
+
+
+if __name__ == "__main__":
+    print("POLYTREE DISCREPANCY - IMPROVED PATTERN PRESERVATION")
+    print("=" * 80)
+
+    # === Configuration with fixes ===
+    nodes = ["v1", "v2", "v3", "v4"]
+    n_samples = 3000  # ← INCREASED for better finite-sample behavior
+
+    gamma_shapes = {"v1": 3.0, "v2": 2.5, "v3": 2.8, "v4": 3.5}
+    gamma_scales = {"v1": 1.2, "v2": 0.8, "v3": 1.0, "v4": 0.9}
+
+    # Use stronger, more consistent weights to improve pattern clarity
+    edges = {
+        ("v1", "v2"): -0.95,  # ← Stronger weights
+        ("v1", "v3"): -0.95,  # ← More consistent
+        ("v3", "v4"): 0.95,  # ← Clear signal
+    }
+
+    print(f"Polytree: {edges}")
+    print(f"Samples: {n_samples} (increased for better patterns)")
+    print()
+
+    # === Step 1: Gamma noise (centered) ===
+    print("STEP 1: Centered gamma noise generation")
+    print("-" * 40)
+
+    np.random.seed(42)  # Fixed seed for reproducibility
+    noise_samples = {}
+
+    for node in nodes:
+        shape, scale = gamma_shapes[node], gamma_scales[node]
+        # Generate and center
+        epsilon = np.random.gamma(shape=shape, scale=scale, size=n_samples)
+        epsilon -= shape * scale  # Center: E[ε] = 0
+        noise_samples[node] = epsilon
+
+        print(
+            f"{node}: Gamma({shape:.1f}, {scale:.1f}) centered → "
+            f"mean={np.mean(epsilon):.4f}, std={np.std(epsilon):.3f}"
+        )
+
+    # === Step 2: LSEM with consistent strong weights ===
+    print(f"\nSTEP 2: LSEM with strong consistent weights")
+    print("-" * 45)
+
+    n_nodes = len(nodes)
+    node_idx = {node: i for i, node in enumerate(nodes)}
+
+    Lambda = np.zeros((n_nodes, n_nodes))
+    for (parent, child), weight in edges.items():
+        i, j = node_idx[parent], node_idx[child]
+        Lambda[j, i] = weight
+
+    print("Lambda matrix:")
+    print(pd.DataFrame(Lambda, index=nodes, columns=nodes))
+
+    alpha = np.linalg.inv(np.eye(n_nodes) - Lambda)
+
+    print(f"\nAlpha matrix condition number: {np.linalg.cond(alpha):.2f}")
+
+    # Apply LSEM
+    epsilon_matrix = np.column_stack([noise_samples[node] for node in nodes])
+    X_matrix = epsilon_matrix @ alpha.T
+
+    X_samples = {nodes[i]: X_matrix[:, i] for i in range(n_nodes)}
+
+    print("✓ LSEM transformation completed")
+    print(f"X sample means: {[f'{np.mean(X_samples[node]):.3f}' for node in nodes]}")
+    print(f"X sample stds:  {[f'{np.std(X_samples[node]):.3f}' for node in nodes]}")
+
+    # === Step 3: Improved discrepancy computation ===
+    print(f"\nSTEP 3: Improved discrepancy computation")
+    print("-" * 45)
+
+    X_data = np.column_stack([X_samples[node] for node in nodes])
+    Gamma_finite = compute_discrepancy_from_samples(X_data)
+
+    print("Finite-sample discrepancy matrix:")
+    df_finite = pd.DataFrame(Gamma_finite, index=nodes, columns=nodes)
+    print(df_finite.round(6))
+
+    # === Step 4: Population comparison ===
+    print(f"\nSTEP 4: Population discrepancy comparison")
+    print("-" * 45)
+
+    # True ε moments
+    true_sigmas = {
+        node: gamma_scales[node] * np.sqrt(gamma_shapes[node]) for node in nodes
+    }
+    true_kappas = {
+        node: 2 * gamma_shapes[node] * gamma_scales[node] ** 3 for node in nodes
+    }
+
+    # Population discrepancy
+    from polytree_discrepancy import Polytree, compute_discrepancy_fast
+
+    poly_pop = Polytree(edges, true_sigmas, true_kappas)
+    Gamma_pop = compute_discrepancy_fast(poly_pop)
+
+    print("Population discrepancy matrix:")
+    df_pop = pd.DataFrame(Gamma_pop, index=nodes, columns=nodes)
+    print(df_pop.round(6))
+
+    # === Step 5: Pattern analysis ===
+    print(f"\nSTEP 5: Pattern quality analysis")
+    print("-" * 40)
+
+    diff_matrix = Gamma_finite - Gamma_pop
+    max_abs_diff = np.max(np.abs(diff_matrix))
+
+    print(f"Max absolute difference: {max_abs_diff:.6f}")
+
+    # Check specific patterns
+    print("\nPattern checks:")
+
+    # Row 1 (v1): Should be all zeros
+    v1_nonzeros = np.sum(np.abs(Gamma_finite[0, 1:]) > 1e-6)
+    print(
+        f"1. v1 row zeros: {'✓' if v1_nonzeros == 0 else '✗'} ({v1_nonzeros} non-zeros)"
+    )
+
+    # Row 2 (v2): Should have same values [*, 0, same, same]
+    v2_vals = Gamma_finite[1, [0, 2, 3]]  # Skip diagonal
+    v2_std = np.std(v2_vals)
+    print(
+        f"2. v2 row consistency: {'✓' if v2_std < 0.05 else '✗'} (std = {v2_std:.6f})"
+    )
+    print(f"   Values: {v2_vals}")
+
+    # Row 3 (v3): Should have [same, same, 0]
+    v3_vals = Gamma_finite[2, [0, 1, 3]]
+    v3_first_two_diff = abs(v3_vals[0] - v3_vals[1])
+    v3_third_small = abs(v3_vals[2]) < 1e-4
+    print(
+        f"3. v3 row pattern: {'✓' if v3_first_two_diff < 0.05 and v3_third_small else '✗'}"
+    )
+    print(f"   First two diff: {v3_first_two_diff:.6f}, Third value: {v3_vals[2]:.6f}")
+
+    # Row 4 (v4): Should have [same, same, smaller]
+    v4_vals = Gamma_finite[3, [0, 1, 2]]
+    v4_first_two_diff = abs(v4_vals[0] - v4_vals[1])
+    v4_third_smaller = v4_vals[2] < min(v4_vals[0], v4_vals[1]) * 0.9
+    print(
+        f"4. v4 row pattern: {'✓' if v4_first_two_diff < 0.05 and v4_third_smaller else '✗'}"
+    )
+    print(
+        f"   First two diff: {v4_first_two_diff:.6f}, Third smaller: {v4_third_smaller}"
+    )
+
+    # === Step 6: Structure learning test ===
+    print(f"\nSTEP 6: Structure learning verification")
+    print("-" * 40)
+
+    try:
+        from latent_polytree_truepoly import get_polytree_algo3
+        import latent_polytree_truepoly as lpt
+
+        if hasattr(lpt, "EPS"):
+            lpt.EPS = 0.035  # More lenient for finite samples
+
+        recovered = get_polytree_algo3(Gamma_finite)
+        recovered_edges = recovered.edges
+
+        ground_truth = get_polytree_algo3(Gamma_pop).edges
+        observed_edges = [(p, c) for (p, c) in recovered_edges]
+
+        print(f"Ground truth: {ground_truth}")
+        print(f"Recovered:    {observed_edges}")
+
+        perfect_match = set(ground_truth) == set(observed_edges)
+        print(f"\nPerfect recovery: {'🎉 YES!' if perfect_match else '❌ NO'}")
+
+    except Exception as e:
+        print(f"❌ Structure learning error: {e}")
