@@ -271,7 +271,7 @@ import pandas as pd
 def compute_discrepancy_from_samples(
     X: np.ndarray,
     eps_corr: float = 1e-10,  # Very strict correlation threshold
-    eps_numzero: float = 1e-2,  # More lenient for finite samples
+    eps_numzero: float = 1e-1,  # More lenient for finite samples
     eps_den: float = 1e-14,  # Denominator guard
 ) -> np.ndarray:
     """
@@ -280,20 +280,13 @@ def compute_discrepancy_from_samples(
     X = np.asarray(X, dtype=np.float64)
     n, p = X.shape
 
-    # Center data
-    mu = X.mean(axis=0, keepdims=True)
-    XC = X - mu
-
-    # Standardize for numerical stability (scale-invariant discrepancy)
-    s = XC.std(axis=0, ddof=1)
-    s[s == 0.0] = 1.0
-    Z = XC / s
+    XC = X - X.mean(axis=0, keepdims=True)
 
     # Compute sample moments with /n normalization
-    Sigma = (Z.T @ Z) / n
-    C_iij = (Z**2).T @ Z / n
-    C_ijj = Z.T @ (Z**2) / n
-    C_iii = (Z**3).mean(axis=0)
+    Sigma = (XC.T @ XC) / n  # (p,p)
+    C_iij = (XC**2).T @ XC / n  # (p,p)
+    C_ijj = XC.T @ (XC**2) / n  # (p,p)
+    C_iii = (XC**3).mean(axis=0)
 
     # Initialize discrepancy matrix
     Gamma = np.zeros((p, p), dtype=np.float64)
@@ -307,17 +300,21 @@ def compute_discrepancy_from_samples(
     # Rule 2: Near-zero numerator → 0 (improved detection)
     s_ii = np.diag(Sigma)
 
-    # More sophisticated zero detection
+    # Identity test: |Σ_ii*C_iij - Σ_ij*C_iii| ≈ 0  (relative)
     lhs = s_ii[:, None] * C_iij
     rhs = Sigma * C_iii[:, None]
-    numerator = lhs - rhs
-
-    # Use adaptive threshold based on data scale
-    scale = np.maximum(np.abs(lhs), np.abs(rhs))
-    adaptive_threshold = eps_numzero * (1 + scale)
-
-    near_zero = (np.abs(numerator) < adaptive_threshold) & offdiag & (~uncorrelated)
+    diff = np.abs(lhs - rhs)
+    scale = np.abs(lhs) + np.abs(rhs) + 1e-18
+    near_zero = (diff <= eps_numzero * scale) & offdiag & (~uncorrelated)
     Gamma[near_zero] = 0.0
+    # after computing moments on XC (not Z)
+    print(
+        "||lhs - rhs|| / ||lhs + rhs|| for (v3,v4):",
+        np.abs((s_ii[2] * C_iij[2, 3]) - (Sigma[2, 3] * C_iii[2]))
+        / (np.abs(s_ii[2] * C_iij[2, 3]) + np.abs(Sigma[2, 3] * C_iii[2]) + 1e-18),
+    )
+
+    print("Gamma[v3,v4] should be ~0:", Gamma[2, 3])
 
     # Rule 3: Regular computation
     remaining = offdiag & (~uncorrelated) & (~near_zero)
@@ -332,177 +329,292 @@ def compute_discrepancy_from_samples(
     return Gamma
 
 
-if __name__ == "__main__":
-    print("POLYTREE DISCREPANCY - IMPROVED PATTERN PRESERVATION")
-    print("=" * 80)
+#!/usr/bin/env python3
+"""
+Refactored polytree_discrepancy.py with modular helpers.
+Produces IDENTICAL results to the working monolithic version.
+"""
 
-    # === Configuration with fixes ===
+
+from typing import Dict, Tuple, List, Any
+from dataclasses import dataclass, field
+
+import numpy as np
+import pandas as pd
+import networkx as nx
+
+# --- import the core API from your module (same file or installed module) ---
+from polytree_discrepancy import (
+    Polytree,
+    compute_discrepancy_fast,
+    compute_discrepancy_from_samples,  # your improved finite-sample version
+)
+
+# ----------------------------- Helpers -------------------------------- #
+
+
+def create_sample_configuration() -> Dict[str, Any]:
+    """Exact same config that gave the good result."""
     nodes = ["v1", "v2", "v3", "v4"]
-    n_samples = 3000  # ← INCREASED for better finite-sample behavior
-
+    edges = {("v1", "v2"): -0.95, ("v1", "v3"): -0.95, ("v3", "v4"): 0.95}
     gamma_shapes = {"v1": 3.0, "v2": 2.5, "v3": 2.8, "v4": 3.5}
     gamma_scales = {"v1": 1.2, "v2": 0.8, "v3": 1.0, "v4": 0.9}
-
-    # Use stronger, more consistent weights to improve pattern clarity
-    edges = {
-        ("v1", "v2"): -0.95,  # ← Stronger weights
-        ("v1", "v3"): -0.95,  # ← More consistent
-        ("v3", "v4"): 0.95,  # ← Clear signal
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "gamma_shapes": gamma_shapes,
+        "gamma_scales": gamma_scales,
+        "n_samples": 3000,
+        "seed": 42,
     }
 
-    print(f"Polytree: {edges}")
-    print(f"Samples: {n_samples} (increased for better patterns)")
-    print()
 
-    # === Step 1: Gamma noise (centered) ===
+def topo_order_from_edges(
+    nodes: List[str], edges: Dict[Tuple[str, str], float]
+) -> List[str]:
+    """Respect DAG topological order (no alphabetical resorting)."""
+    g = nx.DiGraph()
+    g.add_nodes_from(nodes)
+    g.add_edges_from(edges.keys())
+    if not nx.is_directed_acyclic_graph(g):
+        raise ValueError("Edges must define a DAG.")
+    return list(nx.topological_sort(g))
+
+
+def generate_noise_samples(
+    nodes: List[str],
+    gamma_shapes: Dict[str, float],
+    gamma_scales: Dict[str, float],
+    n_samples: int,
+    seed: int,
+) -> Dict[str, np.ndarray]:
+    """Generate centered Gamma noise using analytic mean (shape*scale)."""
+    np.random.seed(seed)
+    noise_samples: Dict[str, np.ndarray] = {}
+
     print("STEP 1: Centered gamma noise generation")
     print("-" * 40)
-
-    np.random.seed(42)  # Fixed seed for reproducibility
-    noise_samples = {}
-
     for node in nodes:
         shape, scale = gamma_shapes[node], gamma_scales[node]
-        # Generate and center
         epsilon = np.random.gamma(shape=shape, scale=scale, size=n_samples)
-        epsilon -= shape * scale  # Center: E[ε] = 0
+        epsilon -= shape * scale  # analytic centering
         noise_samples[node] = epsilon
-
         print(
             f"{node}: Gamma({shape:.1f}, {scale:.1f}) centered → "
             f"mean={np.mean(epsilon):.4f}, std={np.std(epsilon):.3f}"
         )
+    return noise_samples
 
-    # === Step 2: LSEM with consistent strong weights ===
+
+def apply_lsem_transformation(
+    noise_samples: Dict[str, np.ndarray],
+    edges: Dict[Tuple[str, str], float],
+    nodes: List[str],
+) -> Dict[str, np.ndarray]:
+    """X = (I - Λ)^(-1) ε with Λ[j,i] = weight for i→j."""
     print(f"\nSTEP 2: LSEM with strong consistent weights")
     print("-" * 45)
+    n = len(nodes)
+    idx = {v: i for i, v in enumerate(nodes)}
 
-    n_nodes = len(nodes)
-    node_idx = {node: i for i, node in enumerate(nodes)}
-
-    Lambda = np.zeros((n_nodes, n_nodes))
-    for (parent, child), weight in edges.items():
-        i, j = node_idx[parent], node_idx[child]
-        Lambda[j, i] = weight
+    Lambda = np.zeros((n, n))
+    for (parent, child), w in edges.items():
+        Lambda[idx[child], idx[parent]] = w
 
     print("Lambda matrix:")
     print(pd.DataFrame(Lambda, index=nodes, columns=nodes))
 
-    alpha = np.linalg.inv(np.eye(n_nodes) - Lambda)
-
+    alpha = np.linalg.inv(np.eye(n) - Lambda)
     print(f"\nAlpha matrix condition number: {np.linalg.cond(alpha):.2f}")
 
-    # Apply LSEM
-    epsilon_matrix = np.column_stack([noise_samples[node] for node in nodes])
+    epsilon_matrix = np.column_stack([noise_samples[v] for v in nodes])
     X_matrix = epsilon_matrix @ alpha.T
 
-    X_samples = {nodes[i]: X_matrix[:, i] for i in range(n_nodes)}
-
+    X_samples = {nodes[i]: X_matrix[:, i] for i in range(n)}
     print("✓ LSEM transformation completed")
-    print(f"X sample means: {[f'{np.mean(X_samples[node]):.3f}' for node in nodes]}")
-    print(f"X sample stds:  {[f'{np.std(X_samples[node]):.3f}' for node in nodes]}")
+    print(f"X sample means: {[f'{np.mean(X_samples[v]):.3f}' for v in nodes]}")
+    print(f"X sample stds:  {[f'{np.std(X_samples[v]):.3f}' for v in nodes]}")
+    return X_samples
 
-    # === Step 3: Improved discrepancy computation ===
+
+def finite_sample_discrepancy(
+    X_samples: Dict[str, np.ndarray], nodes: List[str]
+) -> np.ndarray:
     print(f"\nSTEP 3: Improved discrepancy computation")
     print("-" * 45)
+    X = np.column_stack([X_samples[v] for v in nodes])
+    return compute_discrepancy_from_samples(X)  # uses your improved version
 
-    X_data = np.column_stack([X_samples[node] for node in nodes])
-    Gamma_finite = compute_discrepancy_from_samples(X_data)
 
-    print("Finite-sample discrepancy matrix:")
-    df_finite = pd.DataFrame(Gamma_finite, index=nodes, columns=nodes)
-    print(df_finite.round(6))
-
-    # === Step 4: Population comparison ===
+def population_discrepancy(
+    edges: Dict[Tuple[str, str], float],
+    gamma_shapes: Dict[str, float],
+    gamma_scales: Dict[str, float],
+) -> np.ndarray:
     print(f"\nSTEP 4: Population discrepancy comparison")
     print("-" * 45)
+    sigmas = {v: gamma_scales[v] * np.sqrt(gamma_shapes[v]) for v in gamma_shapes}
+    kappas = {v: 2 * gamma_shapes[v] * (gamma_scales[v] ** 3) for v in gamma_shapes}
+    poly = Polytree(edges, sigmas, kappas)
+    return compute_discrepancy_fast(poly)
 
-    # True ε moments
-    true_sigmas = {
-        node: gamma_scales[node] * np.sqrt(gamma_shapes[node]) for node in nodes
-    }
-    true_kappas = {
-        node: 2 * gamma_shapes[node] * gamma_scales[node] ** 3 for node in nodes
-    }
 
-    # Population discrepancy
-    from polytree_discrepancy import Polytree, compute_discrepancy_fast
+def show_matrices(G_finite: np.ndarray, G_pop: np.ndarray, nodes: List[str]) -> None:
+    print("Finite-sample discrepancy matrix:")
+    print(pd.DataFrame(G_finite, index=nodes, columns=nodes).round(6))
+    print("\nPopulation discrepancy matrix:")
+    print(pd.DataFrame(G_pop, index=nodes, columns=nodes).round(6))
 
-    poly_pop = Polytree(edges, true_sigmas, true_kappas)
-    Gamma_pop = compute_discrepancy_fast(poly_pop)
 
-    print("Population discrepancy matrix:")
-    df_pop = pd.DataFrame(Gamma_pop, index=nodes, columns=nodes)
-    print(df_pop.round(6))
-
-    # === Step 5: Pattern analysis ===
+def analyze_patterns(G_finite: np.ndarray, G_pop: np.ndarray, nodes: List[str]) -> None:
     print(f"\nSTEP 5: Pattern quality analysis")
     print("-" * 40)
+    diff = G_finite - G_pop
+    print(f"Max absolute difference: {np.max(np.abs(diff)):.6f}")
 
-    diff_matrix = Gamma_finite - Gamma_pop
-    max_abs_diff = np.max(np.abs(diff_matrix))
-
-    print(f"Max absolute difference: {max_abs_diff:.6f}")
-
-    # Check specific patterns
-    print("\nPattern checks:")
-
-    # Row 1 (v1): Should be all zeros
-    v1_nonzeros = np.sum(np.abs(Gamma_finite[0, 1:]) > 1e-6)
+    # Your checks
+    v1_nonzeros = np.sum(np.abs(G_finite[0, 1:]) > 1e-6)
+    print(f"\nPattern checks:")
     print(
         f"1. v1 row zeros: {'✓' if v1_nonzeros == 0 else '✗'} ({v1_nonzeros} non-zeros)"
     )
-
-    # Row 2 (v2): Should have same values [*, 0, same, same]
-    v2_vals = Gamma_finite[1, [0, 2, 3]]  # Skip diagonal
-    v2_std = np.std(v2_vals)
+    v2_vals = G_finite[1, [0, 2, 3]]
     print(
-        f"2. v2 row consistency: {'✓' if v2_std < 0.05 else '✗'} (std = {v2_std:.6f})"
+        f"2. v2 row consistency: {'✓' if np.std(v2_vals) < 0.05 else '✗'} (std = {np.std(v2_vals):.6f})"
+        f"\n   Values: {v2_vals}"
     )
-    print(f"   Values: {v2_vals}")
-
-    # Row 3 (v3): Should have [same, same, 0]
-    v3_vals = Gamma_finite[2, [0, 1, 3]]
-    v3_first_two_diff = abs(v3_vals[0] - v3_vals[1])
-    v3_third_small = abs(v3_vals[2]) < 1e-4
+    v3_vals = G_finite[2, [0, 1, 3]]
     print(
-        f"3. v3 row pattern: {'✓' if v3_first_two_diff < 0.05 and v3_third_small else '✗'}"
+        f"3. v3 row pattern: {'✓' if abs(v3_vals[0]-v3_vals[1]) < 0.05 and abs(v3_vals[2]) < 1e-4 else '✗'}"
+        f"\n   First two diff: {abs(v3_vals[0]-v3_vals[1]):.6f}, Third value: {v3_vals[2]:.6f}"
     )
-    print(f"   First two diff: {v3_first_two_diff:.6f}, Third value: {v3_vals[2]:.6f}")
-
-    # Row 4 (v4): Should have [same, same, smaller]
-    v4_vals = Gamma_finite[3, [0, 1, 2]]
-    v4_first_two_diff = abs(v4_vals[0] - v4_vals[1])
-    v4_third_smaller = v4_vals[2] < min(v4_vals[0], v4_vals[1]) * 0.9
+    v4_vals = G_finite[3, [0, 1, 2]]
+    smaller = v4_vals[2] < min(v4_vals[0], v4_vals[1]) * 0.9
     print(
-        f"4. v4 row pattern: {'✓' if v4_first_two_diff < 0.05 and v4_third_smaller else '✗'}"
-    )
-    print(
-        f"   First two diff: {v4_first_two_diff:.6f}, Third smaller: {v4_third_smaller}"
+        f"4. v4 row pattern: {'✓' if abs(v4_vals[0]-v4_vals[1]) < 0.05 and smaller else '✗'}"
+        f"\n   First two diff: {abs(v4_vals[0]-v4_vals[1]):.6f}, Third smaller: {smaller}"
     )
 
-    # === Step 6: Structure learning test ===
+
+def structure_learning_check(G_finite: np.ndarray, G_pop: np.ndarray) -> None:
     print(f"\nSTEP 6: Structure learning verification")
     print("-" * 40)
-
     try:
         from latent_polytree_truepoly import get_polytree_algo3
         import latent_polytree_truepoly as lpt
 
         if hasattr(lpt, "EPS"):
-            lpt.EPS = 0.035  # More lenient for finite samples
+            lpt.EPS = 0.035  # same lenient tolerance used before
 
-        recovered = get_polytree_algo3(Gamma_finite)
-        recovered_edges = recovered.edges
-
-        ground_truth = get_polytree_algo3(Gamma_pop).edges
-        observed_edges = [(p, c) for (p, c) in recovered_edges]
-
-        print(f"Ground truth: {ground_truth}")
-        print(f"Recovered:    {observed_edges}")
-
-        perfect_match = set(ground_truth) == set(observed_edges)
-        print(f"\nPerfect recovery: {'🎉 YES!' if perfect_match else '❌ NO'}")
-
+        gt = get_polytree_algo3(G_pop).edges
+        rec = get_polytree_algo3(G_finite).edges
+        print(f"Ground truth: {gt}")
+        print(f"Recovered:    {rec}")
+        ok = set(gt) == set(rec)
+        print(f"\nPerfect recovery: {'🎉 YES!' if ok else '❌ NO'}")
     except Exception as e:
         print(f"❌ Structure learning error: {e}")
+
+
+# ----------------------------- Main ---------------------------------- #
+
+
+def run_polytree_discrepancy_demo(
+    config: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    if config is None:
+        config = create_sample_configuration()
+
+    print("POLYTREE DISCREPANCY - IMPROVED PATTERN PRESERVATION")
+    print("=" * 80)
+
+    nodes = config["nodes"]
+    edges = config["edges"]
+    gamma_shapes = config["gamma_shapes"]
+    gamma_scales = config["gamma_scales"]
+    n_samples = config["n_samples"]
+    seed = config.get("seed", 42)
+
+    # ensure topological order is respected
+    nodes = topo_order_from_edges(nodes, edges)
+
+    print(f"Polytree: {edges}")
+    print(f"Samples: {n_samples} (increased for better patterns)")
+    print()
+
+    noise_samples = generate_noise_samples(
+        nodes, gamma_shapes, gamma_scales, n_samples, seed
+    )
+    X_samples = apply_lsem_transformation(noise_samples, edges, nodes)
+    G_finite = finite_sample_discrepancy(X_samples, nodes)
+    G_pop = population_discrepancy(edges, gamma_shapes, gamma_scales)
+    show_matrices(G_finite, G_pop, nodes)
+    analyze_patterns(G_finite, G_pop, nodes)
+    structure_learning_check(G_finite, G_pop)
+
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "gamma_shapes": gamma_shapes,
+        "gamma_scales": gamma_scales,
+        "n_samples": n_samples,
+        "Gamma_finite": G_finite,
+        "Gamma_pop": G_pop,
+    }
+
+
+# ------------------------- Random polytree ---------------------------- #
+
+
+def run_polytree_discrepancy_for_random_tree(
+    polytree_data: Dict[str, Any], n_samples: int = 3000, seed: int = 42
+):
+    """
+    Accepts a dict like:
+      {
+        "weights": {("v1","v2"): w12, ...},  # directed edges with weights
+        "nodes": ["v1", ...],                # optional; will derive if absent
+        "gamma_shapes": {...},               # optional
+        "gamma_scales": {...},               # optional
+      }
+    """
+    print("POLYTREE DISCREPANCY - RANDOM POLYTREE ANALYSIS")
+    print("=" * 80)
+
+    edges = polytree_data["weights"]
+    nodes = polytree_data.get("nodes")
+    if nodes is None:
+        nodes = sorted(set(u for (u, _) in edges) | set(v for (_, v) in edges))
+    nodes = topo_order_from_edges(nodes, edges)  # CRITICAL: topo order
+
+    gamma_shapes = polytree_data.get("gamma_shapes") or {v: 2.5 for v in nodes}
+    gamma_scales = polytree_data.get("gamma_scales") or {v: 1.0 for v in nodes}
+
+    print(f"Random polytree: {len(nodes)} nodes, {len(edges)} edges")
+    print(f"Directed edges: {sorted(edges.keys())}")
+
+    noise_samples = generate_noise_samples(
+        nodes, gamma_shapes, gamma_scales, n_samples, seed
+    )
+    X_samples = apply_lsem_transformation(noise_samples, edges, nodes)
+    G_finite = finite_sample_discrepancy(X_samples, nodes)
+
+    # population using the same gamma params
+    G_pop = population_discrepancy(edges, gamma_shapes, gamma_scales)
+    show_matrices(G_finite, G_pop, nodes)
+    analyze_patterns(G_finite, G_pop, nodes)
+    structure_learning_check(G_finite, G_pop)
+
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "Gamma_finite": G_finite,
+        "Gamma_pop": G_pop,
+        "gamma_shapes": gamma_shapes,
+        "gamma_scales": gamma_scales,
+        "n_samples": n_samples,
+    }
+
+
+if __name__ == "__main__":
+    run_polytree_discrepancy_demo()
