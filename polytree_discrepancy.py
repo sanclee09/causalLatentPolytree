@@ -1,9 +1,11 @@
 from __future__ import annotations
-
+from typing import Dict, Tuple, List, Any
 from dataclasses import dataclass, field
-from typing import Dict, Tuple, List
+
 import numpy as np
+import pandas as pd
 import networkx as nx
+from scipy import stats
 
 
 @dataclass
@@ -253,102 +255,142 @@ def compute_discrepancy_fast(
     return Gamma
 
 
-# !/usr/bin/env python3
-"""
-FIXED VERSION: Better finite-sample discrepancy computation with improved pattern preservation.
-
-Key fixes:
-1. Larger sample size (2000+ samples)
-2. More lenient numerical thresholds for finite-sample effects  
-3. Improved zero detection using relative thresholds
-4. Better handling of edge cases
-"""
-
-import numpy as np
-import pandas as pd
+def _center_columns(X: np.ndarray) -> np.ndarray:
+    """Return column-centered copy of X."""
+    return X - X.mean(axis=0, keepdims=True)
 
 
-def compute_discrepancy_from_samples(
-    X: np.ndarray,
-    eps_corr: float = 1e-10,  # Very strict correlation threshold
-    eps_numzero: float = 1e-1,  # More lenient for finite samples
-    eps_den: float = 1e-14,  # Denominator guard
-) -> np.ndarray:
+def _sample_moments_from_centered(
+    XC: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
-    Improved discrepancy computation with better pattern preservation.
+    Compute Σ, C_iij, C_ijj, C_iii using /n normalization from centered data XC.
+    Returns: (Sigma, C_iij, C_ijj, C_iii)
     """
-    X = np.asarray(X, dtype=np.float64)
-    n, p = X.shape
-
-    XC = X - X.mean(axis=0, keepdims=True)
-
-    # Compute sample moments with /n normalization
+    n, p = XC.shape
     Sigma = (XC.T @ XC) / n  # (p,p)
     C_iij = (XC**2).T @ XC / n  # (p,p)
     C_ijj = XC.T @ (XC**2) / n  # (p,p)
-    C_iii = (XC**3).mean(axis=0)
+    C_iii = (XC**3).mean(axis=0)  # (p,)
+    return Sigma, C_iij, C_ijj, C_iii
 
-    # Initialize discrepancy matrix
-    Gamma = np.zeros((p, p), dtype=np.float64)
-    np.fill_diagonal(Gamma, 0.0)
+
+def _corr_from_cov(Sigma: np.ndarray, var_floor: float = 1e-18) -> np.ndarray:
+    """
+    Build the correlation matrix R from covariance Sigma, with a small variance floor.
+    """
+    s_ii = np.diag(Sigma).astype(np.float64)
+    s_ii = np.maximum(s_ii, var_floor)
+    denom = np.sqrt(s_ii[:, None] * s_ii[None, :])
+    R = Sigma / denom
+    # keep diagonal exactly 1.0 (avoid tiny drift)
+    np.fill_diagonal(R, 1.0)
+    return R
+
+
+def _fisher_uncorrelated_mask(
+    Sigma: np.ndarray, n: int, alpha: float = 0.01
+) -> np.ndarray:
+    """
+    Off-diagonal mask for 'uncorrelated' using Fisher's r->z transform:
+        z = atanh(r) ~ N(0, 1/(n-3)) under H0: rho=0.
+    We declare 'uncorrelated' when |z| < z_(1-alpha/2)/sqrt(n-3).
+    This threshold naturally decreases as n increases.
+    """
+    p = Sigma.shape[0]
     offdiag = ~np.eye(p, dtype=bool)
 
-    # Rule 1: Uncorrelated pairs → -1 (very strict threshold)
-    uncorrelated = (np.abs(Sigma) < eps_corr) & offdiag
-    Gamma[uncorrelated] = -1.0
+    # correlation
+    R = _corr_from_cov(Sigma)
 
-    # Rule 2: Near-zero numerator → 0 (improved detection)
-    s_ii = np.diag(Sigma)
+    # clip to avoid atanh(±1) → inf
+    R_clipped = np.clip(R, -0.999999, 0.999999)
+    Z = np.arctanh(R_clipped)
 
-    # Identity test: |Σ_ii*C_iij - Σ_ij*C_iii| ≈ 0  (relative)
+    # critical value
+    denom = np.sqrt(max(n - 3, 1))  # guard n<4
+    zcrit = stats.norm.ppf(1 - alpha / 2.0)
+    thresh = zcrit / denom
+
+    return (np.abs(Z) < thresh) & offdiag
+
+
+def _near_zero_mask(
+    Sigma: np.ndarray,
+    C_iij: np.ndarray,
+    C_iii: np.ndarray,
+    s_ii: np.ndarray,
+    eps_numzero: float,
+    ban_mask: np.ndarray,
+) -> np.ndarray:
+    """
+    Near-zero identity: |Σ_ii*C_iij - Σ_ij*C_iii| <= eps_numzero * (|lhs|+|rhs|).
+    Only on off-diagonal & not banned by ban_mask (e.g., uncorrelated).
+    """
+    p = Sigma.shape[0]
+    offdiag = ~np.eye(p, dtype=bool)
     lhs = s_ii[:, None] * C_iij
     rhs = Sigma * C_iii[:, None]
     diff = np.abs(lhs - rhs)
     scale = np.abs(lhs) + np.abs(rhs) + 1e-18
-    near_zero = (diff <= eps_numzero * scale) & offdiag & (~uncorrelated)
-    Gamma[near_zero] = 0.0
-    # after computing moments on XC (not Z)
-    print(
-        "||lhs - rhs|| / ||lhs + rhs|| for (v3,v4):",
-        np.abs((s_ii[2] * C_iij[2, 3]) - (Sigma[2, 3] * C_iii[2]))
-        / (np.abs(s_ii[2] * C_iij[2, 3]) + np.abs(Sigma[2, 3] * C_iii[2]) + 1e-18),
-    )
+    return (diff <= eps_numzero * scale) & offdiag & (~ban_mask)
 
-    print("Gamma[v3,v4] should be ~0:", Gamma[2, 3])
 
-    # Rule 3: Regular computation
-    remaining = offdiag & (~uncorrelated) & (~near_zero)
+def _ratio_update(
+    Gamma: np.ndarray,
+    Sigma: np.ndarray,
+    C_iij: np.ndarray,
+    C_ijj: np.ndarray,
+    s_ii: np.ndarray,
+    base_mask: np.ndarray,
+    eps_den: float,
+) -> None:
+    """
+    Update Γ_ij = (C_ijj * Σ_ii) / (C_iij * Σ_ij) on 'safe' entries.
+    If |denom| < eps_den -> set 0.
+    """
     denom = C_iij * Sigma
-    small_den = (np.abs(denom) < eps_den) & remaining
-    safe = remaining & (~small_den)
-
+    small_den = (np.abs(denom) < eps_den) & base_mask
+    safe = base_mask & (~small_den)
     num = C_ijj * s_ii[:, None]
     Gamma[safe] = num[safe] / denom[safe]
     Gamma[small_den] = 0.0
 
+
+# -------- main API (same outputs/variables) ------------------------
+
+
+def compute_discrepancy_from_samples(
+    X: np.ndarray,
+    eps_numzero: float = 1e-1,
+    eps_den: float = 1e-14,
+    *,
+    alpha_corr: float = 0.01,  # <-- NEW: Fisher test significance
+) -> np.ndarray:
+    X = np.asarray(X, dtype=np.float64)
+    n, p = X.shape
+    XC = _center_columns(X)
+
+    Sigma, C_iij, C_ijj, C_iii = _sample_moments_from_centered(XC)
+    s_ii = np.diag(Sigma)
+
+    Gamma = np.zeros((p, p), dtype=np.float64)
+    np.fill_diagonal(Gamma, 0.0)
+
+    # --- FIX: pass n and alpha correctly ---
+    uncorrelated = _fisher_uncorrelated_mask(Sigma, n=n, alpha=alpha_corr)
+    Gamma[uncorrelated] = -1.0
+
+    near_zero = _near_zero_mask(
+        Sigma, C_iij, C_iii, s_ii, eps_numzero, ban_mask=uncorrelated
+    )
+    Gamma[near_zero] = 0.0
+
+    offdiag = ~np.eye(p, dtype=bool)
+    remaining = offdiag & (~uncorrelated) & (~near_zero)
+    _ratio_update(Gamma, Sigma, C_iij, C_ijj, s_ii, remaining, eps_den)
     return Gamma
 
-
-#!/usr/bin/env python3
-"""
-Refactored polytree_discrepancy.py with modular helpers.
-Produces IDENTICAL results to the working monolithic version.
-"""
-
-
-from typing import Dict, Tuple, List, Any
-from dataclasses import dataclass, field
-
-import numpy as np
-import pandas as pd
-import networkx as nx
-
-# --- import the core API from your module (same file or installed module) ---
-from polytree_discrepancy import (
-    Polytree,
-    compute_discrepancy_fast,
-    compute_discrepancy_from_samples,  # your improved finite-sample version
-)
 
 # ----------------------------- Helpers -------------------------------- #
 
@@ -364,7 +406,7 @@ def create_sample_configuration() -> Dict[str, Any]:
         "edges": edges,
         "gamma_shapes": gamma_shapes,
         "gamma_scales": gamma_scales,
-        "n_samples": 3000,
+        "n_samples": 15000,
         "seed": 42,
     }
 
@@ -443,7 +485,7 @@ def finite_sample_discrepancy(
     print(f"\nSTEP 3: Improved discrepancy computation")
     print("-" * 45)
     X = np.column_stack([X_samples[v] for v in nodes])
-    return compute_discrepancy_from_samples(X)  # uses your improved version
+    return compute_discrepancy_from_samples(X)
 
 
 def population_discrepancy(
