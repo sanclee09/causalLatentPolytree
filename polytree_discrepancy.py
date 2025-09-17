@@ -336,23 +336,33 @@ def _near_zero_mask(
     return (diff <= eps_numzero * scale) & offdiag & (~ban_mask)
 
 
-def _ratio_update(
+def _ratio_update_n_adaptive(
     Gamma: np.ndarray,
     Sigma: np.ndarray,
     C_iij: np.ndarray,
     C_ijj: np.ndarray,
     s_ii: np.ndarray,
     base_mask: np.ndarray,
-    eps_den: float,
+    n: int,
+    q: float = 0.1,  # quantile for typical magnitude
+    c_rel: float = 3e-3,  # relative guard coefficient
 ) -> None:
     """
-    Update Γ_ij = (C_ijj * Σ_ii) / (C_iij * Σ_ij) on 'safe' entries.
-    If |denom| < eps_den -> set 0.
+    Γ_ij = (C_ijj * Σ_ii) / (C_iij * Σ_ij) on safe entries.
+    Small denominators (relative to a typical scale) are treated as 0.
+    Guard shrinks like 1/sqrt(n).
     """
-    denom = C_iij * Sigma
-    small_den = (np.abs(denom) < eps_den) & base_mask
+    denom = C_iij * Sigma  # same as before
+    # typical magnitude from middle of distribution (ignore exact zeros)
+    nz = np.abs(denom[denom != 0])
+    scale = np.quantile(nz, q) if nz.size else 1.0
+    # n-adaptive threshold: smaller with more data
+    thresh = (c_rel / np.sqrt(n)) * scale
+
+    small_den = (np.abs(denom) < thresh) & base_mask
     safe = base_mask & (~small_den)
     num = C_ijj * s_ii[:, None]
+
     Gamma[safe] = num[safe] / denom[safe]
     Gamma[small_den] = 0.0
 
@@ -362,33 +372,41 @@ def _ratio_update(
 
 def compute_discrepancy_from_samples(
     X: np.ndarray,
-    eps_numzero: float = 1e-1,
-    eps_den: float = 1e-14,
+    eps_numzero: float | None = None,
     *,
-    alpha_corr: float = 0.01,  # <-- NEW: Fisher test significance
+    alpha_corr: float | None = None,
 ) -> np.ndarray:
-    X = np.asarray(X, dtype=np.float64)
+    X = np.asarray(X, np.float64)
     n, p = X.shape
-    XC = _center_columns(X)
 
+    XC = X - X.mean(axis=0, keepdims=True)
     Sigma, C_iij, C_ijj, C_iii = _sample_moments_from_centered(XC)
     s_ii = np.diag(Sigma)
 
-    Gamma = np.zeros((p, p), dtype=np.float64)
+    # n-adaptive tolerances
+    if eps_numzero is None:
+        eps_numzero = max(5e-3, 0.8 / np.sqrt(n))
+    if alpha_corr is None:
+        alpha_corr = min(0.05, 2.0 / np.sqrt(n))
+
+    Gamma = np.zeros((p, p), np.float64)
     np.fill_diagonal(Gamma, 0.0)
 
-    # --- FIX: pass n and alpha correctly ---
+    # Fisher "uncorrelated"
     uncorrelated = _fisher_uncorrelated_mask(Sigma, n=n, alpha=alpha_corr)
     Gamma[uncorrelated] = -1.0
 
+    # Near-zero identity (relative, n-adaptive)
     near_zero = _near_zero_mask(
         Sigma, C_iij, C_iii, s_ii, eps_numzero, ban_mask=uncorrelated
     )
     Gamma[near_zero] = 0.0
 
-    offdiag = ~np.eye(p, dtype=bool)
-    remaining = offdiag & (~uncorrelated) & (~near_zero)
-    _ratio_update(Gamma, Sigma, C_iij, C_ijj, s_ii, remaining, eps_den)
+    # Ratio with n-adaptive small-denom guard (no ridge)
+    off = ~np.eye(p, dtype=bool)
+    remaining = off & (~uncorrelated) & (~near_zero)
+    _ratio_update_n_adaptive(Gamma, Sigma, C_iij, C_ijj, s_ii, remaining, n=n)
+
     return Gamma
 
 
@@ -538,18 +556,24 @@ def analyze_patterns(G_finite: np.ndarray, G_pop: np.ndarray, nodes: List[str]) 
     )
 
 
-def structure_learning_check(G_finite: np.ndarray, G_pop: np.ndarray) -> None:
+def structure_learning_check(G_finite: np.ndarray, G_pop: np.ndarray, n: int) -> None:
+    """
+    Verify structure recovery. Uses an n-adaptive tolerance for the learner.
+    """
     print(f"\nSTEP 6: Structure learning verification")
     print("-" * 40)
     try:
         from latent_polytree_truepoly import get_polytree_algo3
         import latent_polytree_truepoly as lpt
 
+        # n-adaptive equality tolerance: shrinks like 1/sqrt(n)
+        eps_n = max(0.005, 0.6 / np.sqrt(n))
         if hasattr(lpt, "EPS"):
-            lpt.EPS = 0.035  # same lenient tolerance used before
+            lpt.EPS = eps_n
 
         gt = get_polytree_algo3(G_pop).edges
         rec = get_polytree_algo3(G_finite).edges
+        print(f"Using EPS={eps_n:.6f}")
         print(f"Ground truth: {gt}")
         print(f"Recovered:    {rec}")
         ok = set(gt) == set(rec)
@@ -592,7 +616,7 @@ def run_polytree_discrepancy_demo(
     G_pop = population_discrepancy(edges, gamma_shapes, gamma_scales)
     show_matrices(G_finite, G_pop, nodes)
     analyze_patterns(G_finite, G_pop, nodes)
-    structure_learning_check(G_finite, G_pop)
+    structure_learning_check(G_finite, G_pop, n=n_samples)
 
     return {
         "nodes": nodes,
