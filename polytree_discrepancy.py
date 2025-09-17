@@ -424,7 +424,7 @@ def create_sample_configuration() -> Dict[str, Any]:
         "edges": edges,
         "gamma_shapes": gamma_shapes,
         "gamma_scales": gamma_scales,
-        "n_samples": 15000,
+        "n_samples": 150000,
         "seed": 42,
     }
 
@@ -567,7 +567,7 @@ def structure_learning_check(G_finite: np.ndarray, G_pop: np.ndarray, n: int) ->
         import latent_polytree_truepoly as lpt
 
         # n-adaptive equality tolerance: shrinks like 1/sqrt(n)
-        eps_n = max(0.005, 0.6 / np.sqrt(n))
+        eps_n = max(0.01, 1.0 / np.log(n))
         if hasattr(lpt, "EPS"):
             lpt.EPS = eps_n
 
