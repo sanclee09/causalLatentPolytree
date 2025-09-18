@@ -11,6 +11,7 @@ from typing import Dict, Tuple, List, Iterable, Optional, Set
 
 import numpy as np
 
+from numerical_stabilization import normalize_gamma
 from polytree_discrepancy import Polytree, compute_discrepancy_fast
 from latent_polytree_truepoly import get_polytree_algo3
 
