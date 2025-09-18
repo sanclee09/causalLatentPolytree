@@ -116,7 +116,7 @@ def random_weights(
     rng: random.Random,
     low: float = -1.0,
     high: float = 1.0,
-    avoid_small: float = 0.7,
+    avoid_small: float = 0.1,
 ) -> Dict[Tuple[str, str], float]:
     """Assign random edge weights in [low, high], avoiding magnitudes < avoid_small. Labels renamed to ('v{i}', 'v{j}')."""
     weights: Dict[Tuple[str, str], float] = {}
@@ -142,7 +142,7 @@ def get_random_polytree_via_pruefer(
     n: int,
     seed: Optional[int] = None,
     weights_range: Tuple[float, float] = (-1.0, 1.0),
-    avoid_small: float = 0.7,
+    avoid_small: float = 0.1,
     ensure_at_least_one_hidden: bool = True,
 ):
     """
