@@ -424,7 +424,7 @@ def create_sample_configuration() -> Dict[str, Any]:
         "edges": edges,
         "gamma_shapes": gamma_shapes,
         "gamma_scales": gamma_scales,
-        "n_samples": 150000,
+        "n_samples": 30000000,
         "seed": 42,
     }
 
@@ -679,6 +679,90 @@ def run_polytree_discrepancy_for_random_tree(
         "gamma_shapes": gamma_shapes,
         "gamma_scales": gamma_scales,
         "n_samples": n_samples,
+    }
+
+
+def compute_population_X_moments(
+    edges: Dict[Tuple[str, str], float],
+    gamma_shapes: Dict[str, float],
+    gamma_scales: Dict[str, float],
+    nodes: List[str],
+) -> Dict[str, Any]:
+    """
+    Compute population moments of the transformed variables X.
+
+    Returns:
+        Dictionary with population variances and third cumulants of X
+    """
+    # Create Polytree object with population parameters
+    sigmas = {v: gamma_scales[v] * np.sqrt(gamma_shapes[v]) for v in gamma_shapes}
+    kappas = {v: 2 * gamma_shapes[v] * (gamma_scales[v] ** 3) for v in gamma_shapes}
+    poly = Polytree(edges, sigmas, kappas)
+
+    # Compute population covariance matrix of X
+    alpha = poly.alpha_matrix_fast()
+    pop_covariance = poly.covariance_fast(alpha)
+
+    # Extract diagonal variances
+    pop_variances = {nodes[i]: pop_covariance[i, i] for i in range(len(nodes))}
+
+    # Compute population third cumulants of X
+    kappa_vec = np.array([poly.kappas[v] for v in poly.nodes], dtype=np.float64)
+    _, _, C_iii = third_cumulants_fast(alpha, kappa_vec, mode="slices")
+    pop_third_cumulants = {nodes[i]: C_iii[i] for i in range(len(nodes))}
+
+    return {
+        "variances": pop_variances,
+        "third_cumulants": pop_third_cumulants,
+        "covariance_matrix": pop_covariance,
+    }
+
+
+def compare_sample_vs_population_moments(
+    X_samples: Dict[str, np.ndarray],
+    edges: Dict[Tuple[str, str], float],
+    gamma_shapes: Dict[str, float],
+    gamma_scales: Dict[str, float],
+    nodes: List[str],
+) -> Dict[str, float]:
+    """
+    Compare finite-sample moments of X against population moments of X.
+
+    Returns:
+        Dictionary with moment deviation metrics
+    """
+    # Compute empirical moments of X
+    X_centered = {}
+    for node in nodes:
+        X_centered[node] = X_samples[node] - np.mean(X_samples[node])
+
+    empirical_variances = {node: np.var(X_centered[node], ddof=0) for node in nodes}
+    empirical_third_cumulants = {node: np.mean(X_centered[node] ** 3) for node in nodes}
+
+    # Compute population moments of X
+    pop_moments = compute_population_X_moments(edges, gamma_shapes, gamma_scales, nodes)
+
+    # Compute deviations
+    variance_errors = [
+        abs(empirical_variances[node] - pop_moments["variances"][node])
+        for node in nodes
+    ]
+
+    third_cumulant_errors = [
+        abs(empirical_third_cumulants[node] - pop_moments["third_cumulants"][node])
+        for node in nodes
+    ]
+
+    return {
+        "variance_mae": np.mean(variance_errors),
+        "variance_max": np.max(variance_errors),
+        "third_cumulant_mae": np.mean(third_cumulant_errors),
+        "third_cumulant_max": np.max(third_cumulant_errors),
+        "total_moment_error": np.mean(variance_errors + third_cumulant_errors),
+        "empirical_variances": empirical_variances,
+        "population_variances": pop_moments["variances"],
+        "empirical_third_cumulants": empirical_third_cumulants,
+        "population_third_cumulants": pop_moments["third_cumulants"],
     }
 
 
