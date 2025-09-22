@@ -90,9 +90,23 @@
 \section{Introduction}
 \label{sec:intro}
 
-Causal discovery from observational data is a central challenge in modern statistics and machine learning.  The \emph{Linear Non--Gaussian Acyclic Model} (LiNGAM) \citep{shimizu:hoyer:2006} demonstrates that non--Gaussianity of disturbances suffices to orient edges in a directed acyclic graph (DAG) that is fully observed.  However, many practical systems contain latent variables whose omission can distort causal inferences.  This thesis investigates LiNGAMs whose causal structure forms a \emph{minimal latent polytree}, following the terminology of \citet{etesami:kiyavash:coleman:2016}.
+Understanding causality—the fundamental question of which events or variables influence others—has been central to scientific inquiry across disciplines for centuries. From the experimental sciences that seek to establish cause-and-effect relationships through controlled interventions, to the social sciences that must often rely on observational data to infer causal mechanisms, the challenge of distinguishing genuine causal relationships from mere statistical associations remains one of the most important methodological problems in empirical research.
 
-The work of \citet{tramontano:monod:drton:2022} shows that certain rank conditions on matrices built from second and third cumulants characterize edge orientations, yet its focus is on fully observed graphs.  Conversely, \citep{etesami:kiyavash:coleman:2016} develops a four--axiom \emph{discrepancy matrix} that suffices to learn a latent polytree, but instantiates the matrix via directed--information estimators suited to time series.  In this work we synthesise the two lines: we design a cumulant--based discrepancy that obeys the axioms on a single--time--slice latent polytree.
+The modern mathematical framework for causal inference has its roots in the pioneering work of \citet{pearl:causality:2009}, who formalized the distinction between statistical dependence and causal relationships through the lens of directed acyclic graphs (DAGs) and structural equation models. This framework recognizes that while correlation patterns can suggest possible causal structures, additional assumptions—whether experimental, distributional, or structural—are necessary to identify the direction and magnitude of causal effects from observational data alone.
+
+In parallel, the field of graphical modeling has developed sophisticated methods for representing and learning dependency structures among random variables \citep{laurizen:graphical:1996, Edwards:intro:2000}. These approaches excel at capturing the conditional independence relationships that characterize the joint distribution of multivariate data, but they generally cannot distinguish between statistically equivalent models that encode different causal assumptions. This limitation, known as the Markov equivalence problem, represents a fundamental challenge for causal discovery from observational data.
+
+Causal discovery from observational data emerges at the intersection of these two research traditions. The central challenge is to design methods that can recover not merely the statistical dependency structure, but the underlying causal mechanisms that generated the observed data. This requires exploiting additional constraints beyond those captured by conditional independence relationships—constraints that can break the symmetries inherent in purely associational models and reveal the directional nature of causal influences.
+
+The \emph{Linear Non--Gaussian Acyclic Model} (LiNGAM) \citep{shimizu:hoyer:2006} represents a breakthrough in this endeavor, demonstrating that non--Gaussianity of disturbances suffices to orient edges in a directed acyclic graph that is fully observed. By departing from the Gaussian assumption that underlies many classical approaches, LiNGAM methods can achieve full causal identifiability from observational data alone, without requiring experimental interventions or temporal information. This result has profound implications for causal discovery in domains where controlled experiments are impractical or impossible.
+
+However, many practical systems contain latent variables—unobserved confounders, mediators, or common causes—whose omission can severely distort causal inferences. The presence of latent variables introduces additional challenges beyond those encountered in fully observed settings, as these hidden factors can create spurious dependencies among observed variables and mask the true causal structure. Traditional approaches to latent variable modeling often require strong parametric assumptions or prior knowledge about the number and nature of unobserved factors.
+
+This thesis investigates LiNGAMs whose causal structure forms a \emph{minimal latent polytree}, following the terminology of \citet{etesami:kiyavash:coleman:2016}. Polytree structures—directed acyclic graphs whose underlying undirected graph is a tree—represent an important middle ground between the restrictive assumptions of fully observed models and the computational intractability of general latent variable models. While polytrees impose structural constraints that may not hold in all applications, they capture many realistic scenarios while remaining amenable to efficient algorithmic solutions.
+
+The theoretical foundation for our approach builds on two complementary lines of research. The work of \citet{tramontano:monod:drton:2022} shows that certain rank conditions on matrices built from second and third cumulants characterize edge orientations in LiNGAM polytree models, yet its focus remains on fully observed graphs. Conversely, \citet{etesami:kiyavash:coleman:2016} develops a four--axiom \emph{discrepancy matrix} framework that suffices to learn a latent polytree structure, but instantiates the matrix via directed--information estimators specifically designed for time series data rather than single-time-slice observational studies.
+
+In this work we synthesize these two research directions by designing a cumulant--based discrepancy measure that satisfies the theoretical axioms while remaining applicable to cross-sectional data. Our approach leverages the moment-based identifiability results from the LiNGAM literature within the axiomatic framework for latent structure learning, creating a principled method for recovering both observed and latent portions of polytree causal models.
 
 \paragraph{Contributions.} The main contributions are:
 \begin{enumerate}[label=(C\arabic*)]
@@ -112,7 +126,7 @@ A directed graph (digraph) is a pair $G = (V, E)$, where $V$ is the set of verti
 
 A path in $G$ is a sequence of vertices $i_0, \ldots, i_k$ such that $i_j \to i_{j+1} \in E$ or $i_{j+1} \to i_j \in E$ for all $j$. It is directed if all the arrows point in the same direction. A \emph{polytree} is a DAG in which there is a unique path between any two vertices.
 
-If $i \to j \in E$, then $i$ is a parent of $j$, and $j$ is a child of $i$. If $G$ contains a directed path from $i$ to $j$, then $i$ is an ancestor of $j$ and $j$ is a descendant of $i$. The sets of parents, children, ancestors, and descendants of $i \in V$ are denoted by $\pa(i)$, $\ch(i)$, $\an(i)$, $\de(i)$, respectively.
+If $i \to j \in E$, then $i$ is a parent of $j$, and $j$ is a child of $i$. If $G$ contains a directed path from $i$ to $j$, then $i$ is an ancestor of $j$ and $j$ is a descendant of $i$. The sets of parents, children, ancestors, and descendants of $i \in V$ are denoted by $\pa(i)$, $\ch(i)$, $\an(i)$, $\de(i)$, respectively. The \emph{out-degree} of vertex $i$ is the number of children of $i$, i.e., $\text{out-deg}(i) = |\ch(i)|$.
 
 \begin{definition}[Conditional independence]
 \label{def:conditional_independence}
@@ -178,12 +192,23 @@ Let $\varepsilon^{(2)} = (\mathbb{E}[\varepsilon_i \varepsilon_j])_{ij}$ be the 
 \Sigma = (I - \Lambda)^{-\top} \varepsilon^{(2)} (I - \Lambda)^{-1}.
 \end{equation}
 
-This relationship between the structural parameters $(\Lambda, \varepsilon^{(2)})$ and the observed covariance matrix $\Sigma$ is fundamental to the identifiability analysis that follows. When the noise is Gaussian, equation~\eqref{eq:Sigma} captures all distributional information, leading to the Markov equivalence problem discussed above. The non-Gaussian setting, which we explore next, breaks this equivalence and enables full structural recovery.
+\begin{proof}[Derivation of equation~\eqref{eq:Sigma}]
+From the structural equation~\eqref{eq:lsem}, we have $X = (I - \Lambda)^{-\top} \varepsilon$. The covariance matrix of $X$ is therefore
+\begin{align}
+\Sigma &= \mathbb{E}[XX^{\top}] \quad \text{(since $\mathbb{E}[X] = 0$)} \\
+&= \mathbb{E}\left[(I - \Lambda)^{-\top} \varepsilon \varepsilon^{\top} (I - \Lambda)^{-1}\right] \\
+&= (I - \Lambda)^{-\top} \mathbb{E}[\varepsilon \varepsilon^{\top}] (I - \Lambda)^{-1} \\
+&= (I - \Lambda)^{-\top} \varepsilon^{(2)} (I - \Lambda)^{-1},
+\end{align}
+where the third equality uses the linearity of expectation and the final equality follows from the definition of $\varepsilon^{(2)}$.
+\end{proof}
+
+This relationship between the structural parameters $(\Lambda, \varepsilon^{(2)})$ and the observed covariance matrix $\Sigma$ is fundamental to the identifiability analysis that follows \citep[see, e.g.,][]{tramontano:monod:drton:2022}. When the noise is Gaussian, equation~\eqref{eq:Sigma} captures all distributional information, leading to the Markov equivalence problem discussed above. The non-Gaussian setting, which we explore next, breaks this equivalence and enables full structural recovery.
 
 \subsection{Cumulants in Gaussian and Non-Gaussian Models}
 \label{subsec:non-gaussian}
 
-Cumulants are alternative representations of moments of a distribution. Here, we formalize the definition in higher order settings and discuss their implications under Gaussian and non-Gaussian errors.
+Cumulants are alternative representations of moments of a distribution \citep{comon:jutten:handbook}. Here, we formalize the definition in higher order settings and discuss their implications under Gaussian and non-Gaussian errors.
 
 \begin{definition}[Cumulant tensor]
 \label{def:cumulant_tensor}
@@ -221,6 +246,19 @@ This theorem establishes that non-Gaussian distributions necessarily have non-ze
 \label{lem:indep_cum}
 If the variables $ \varepsilon_1,\dots,\varepsilon_n$ are jointly independent, then $\cum(\varepsilon_{i_1},\dots,\varepsilon_{i_k})=0$ unless $i_1=\dots=i_k$.
 \end{lemma}
+
+\begin{definition}[Tucker product]
+\label{def:tucker_product}
+Let $\mathcal{T}$ be a $k$-way tensor in $\mathbb{R}^{n_1 \times \cdots \times n_k}$ and let $A^{(j)} \in \mathbb{R}^{m_j \times n_j}$ be matrices for $j = 1, \ldots, k$. The \emph{Tucker product} of $\mathcal{T}$ with the matrices $A^{(1)}, \ldots, A^{(k)}$ is the $k$-way tensor
+\[
+\mathcal{T} \bullet A^{(1)} \bullet \cdots \bullet A^{(k)} \in \mathbb{R}^{m_1 \times \cdots \times m_k}
+\]
+with entries
+\[
+\left(\mathcal{T} \bullet A^{(1)} \bullet \cdots \bullet A^{(k)}\right)_{i_1,\ldots,i_k} = \sum_{j_1=1}^{n_1} \cdots \sum_{j_k=1}^{n_k} \mathcal{T}_{j_1,\ldots,j_k} A^{(1)}_{i_1,j_1} \cdots A^{(k)}_{i_k,j_k}.
+\]
+When all matrices are identical, $A^{(1)} = \cdots = A^{(k)} = A$, we write this as $\mathcal{T} \bullet [A]_{j=1}^k$.
+\end{definition}
 
 \begin{lemma}
 \label{lem:tucker}
@@ -262,6 +300,7 @@ It then becomes necessary to consider non-Gaussian settings.  Relaxing the const
 \begin{definition}[Multi-Trek]
 A $k$-trek between vertices $i_1,\dots,i_k\in V$ of a DAG $G=(V,E)$ is a collection of directed paths $T=(P_1,\dots,P_k)$ in $G$ that share the same source and have $i_j$ as the sink of $P_j$ for all $j$. The common source node is the top of the trek $\ttop(T)$.  A trek is simple if the top node is the unique node on all the paths.
 \end{definition}
+
 We denote the set of $k$-treks between $i_1,\dots,i_k$ by $\mathcal{T}(i_1,\dots,i_k)$ and the set of simple treks by $\mathcal{S}(i_1,\dots,i_k)$. See Figure~\ref{fig:trek} for an example.
 \begin{figure}[ht]
 \centering
@@ -322,9 +361,9 @@ The $i$th diagonal entry of $\mathcal{C}^{(k)}$ is
 
 \subsection{Polytree Models}
 \label{subsec:polytree-models}
-For general graphs, the algebraic relations among the cumulants may be far more complicated than the bivariate case (which is discussed in Example~\ref{ex:two:vert}) and have not yet been fully characterized. However, there exists a generalization of rank-one constraints for polytrees, which we now discuss.
+For general graphs, the algebraic relations among the cumulants may be far more complicated than the bivariate case (as illustrated in the two-node example of \citet[Example A.1]{tramontano:monod:drton:2022}) and have not yet been fully characterized. However, there exists a generalization of rank-one constraints for polytrees, which we now discuss.
 
-By consequence of there being at most one directed path between any two nodes of a polytree $G$, there is at most one simple trek between any set of nodes $i_1,\dots,i_k$. The simple multi-trek rule then reduces to $C^{(k)}_{i_1,\dots,i_k}(G)=\lambda^{S}\mathcal{C}^{(k)}_{\ttop(S)}$ for a trek between nodes with $S$ being the unique simple trek; denote the top of the simple trek between $i_1,\dots,i_k$, if it exists by $\ttop(i_1,\dots,i_k)$. Also, $C^{(k)}_{i_1,\dots,i_k}(G)=0$ if there is no $k$-trek between the nodes.
+Since there is at most one directed path between any two nodes of a polytree $G$, there is at most one simple trek between any set of nodes $i_1,\dots,i_k$. The simple multi-trek rule then reduces to $C^{(k)}_{i_1,\dots,i_k}(G)=\lambda^{S}\mathcal{C}^{(k)}_{\ttop(S)}$ for a trek between nodes with $S$ being the unique simple trek; denote the top of the simple trek between $i_1,\dots,i_k$, if it exists by $\ttop(i_1,\dots,i_k)$. Also, $C^{(k)}_{i_1,\dots,i_k}(G)=0$ if there is no $k$-trek between the nodes.
 
 For any two vertices $i\not=j$, let $c^{(i,j),k}_m$ denote the $k$th order cumulant $\mathcal{C}^{(k)}_{{i\dots i},{j\dots j}}(G)$, where the first $m$ indices are equal to $i$ and the remaining $k-m$ equal $j$.
 % ---------- Section 4 : matrix definition (exact Prop. 2.10) ----------
@@ -361,7 +400,7 @@ We now specialize the general LiNGAM framework to the polytree setting with late
 Let $G=(V,E)$ be a DAG whose underlying undirected graph is a tree. Partition $V=O\cup L$ into observed and latent vertices. The pair $(G,O)$ is a \emph{minimal latent polytree} if every $\ell\in L$ has out-degree at least~$2$.
 \end{definition}
 
-The minimality condition ensures that no latent variable is redundant—removing any latent variable would disconnect the observed variables or change the conditional independence structure among them. This constraint is essential for identifiability, as latent nodes with out-degree 1 cannot be distinguished from direct edges between observed variables.
+The minimality condition ensures that no latent variable is redundant—removing any latent variable would disconnect the observed variables or change the conditional independence structure among them. This constraint is essential for identifiability, as latent nodes with out-degree 1 cannot be distinguished from direct edges between observed variables. To see why, consider a latent variable $\ell$ with parent $X_j$ and single child $X_i$. The path $X_j \to \ell \to X_i$ induces the same conditional independence relationships among observed variables as the direct edge $X_j \to X_i$, rendering the latent node $\ell$ unidentifiable from observational data alone. This fundamental limitation motivates the minimality constraint in latent polytree models \citep[cf.][]{etesami:kiyavash:coleman:2016}.
 
 \begin{definition}[Latent--LiNGAM polytree model]\label{def:latent_lingam_model}
 A random vector $X\in\mathbb R^{|V|}$ follows the latent--LiNGAM polytree model on $(G,O)$ if:
@@ -722,6 +761,71 @@ A \emph{tree merger} is an operator that takes two directed trees $\vec{T}_1$, $
 \vec{T}_1 \circ \vec{T}_2 \big|_{\vec{T}_3}.
 \]
 \end{definition}
+Figure~\ref{fig:tree_merger} demontrates one such tree merger.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[node distance=1.5cm, every node/.style={circle,draw,minimum size=0.6cm}]
+  % Tree T1
+  \begin{scope}[xshift=-4.5cm]
+    \node (v) at (0,1.5) {$v$};
+    \node (v1) at (-0.8,0.5) {$v_1$};
+    \node (v2) at (0.8,0.5) {$v_2$};
+
+    \draw[->] (v) -- (v1);
+    \draw[->] (v) -- (v2);
+
+    \node[below=0.3cm,draw=none] at (0,0) {$\vec{T}_1$};
+  \end{scope}
+
+  % Comma 1
+  \node[draw=none] at (-2.8,0.8) {,};
+
+  % Tree T2
+  \begin{scope}[xshift=-1.5cm]
+    \node (u) at (0,1.5) {$u$};
+    \node (u1) at (-0.8,0.5) {$v_1$};
+    \node (u3) at (0.8,0.5) {$v_3$};
+
+    \draw[->] (u) -- (u1);
+    \draw[->] (u) -- (u3);
+
+    \node[below=0.3cm,draw=none] at (0,0) {$\vec{T}_2$};
+  \end{scope}
+
+  % Comma 2
+  \node[draw=none] at (0.2,0.8) {,};
+
+  % Shared subtree T3
+  \begin{scope}[xshift=1.5cm]
+    \node (w) at (0,1.5) {$w$};
+    \node (w1) at (0,0.5) {$v_1$};
+
+    \draw[->] (w) -- (w1);
+
+    \node[below=0.3cm,draw=none] at (0,0) {$\vec{T}_3$};
+  \end{scope}
+
+  % Equals sign
+  \node[draw=none] at (3.5,1) {$=$};
+
+  % Merged tree - star graph
+  \begin{scope}[xshift=6cm]
+    \node (h) at (0,1.5) {$h$};
+    \node (v1m) at (0,0.5) {$v_1$};
+    \node (v2m) at (-1.2,0.5) {$v_2$};
+    \node (v3m) at (1.2,0.5) {$v_3$};
+
+    \draw[->] (h) -- (v1m);
+    \draw[->] (h) -- (v2m);
+    \draw[->] (h) -- (v3m);
+
+    \node[below=0.3cm,draw=none] at (0,0) {$\vec{T}_1 \circ \vec{T}_2 \big|_{\vec{T}_3}$};
+  \end{scope}
+\end{tikzpicture}
+\caption{Illustration of the tree merger operation. Two directed trees $\vec{T}_1$ and $\vec{T}_2$ sharing a common subtree $\vec{T}_3$ (node $v_1$ with its parent) are merged to form a single polytree. The merger introduces a latent node $h$ that becomes the common root with direct connections to all observed nodes.}
+\label{fig:tree_merger}
+\end{figure}
 
 \subsection{Structure Recovery Algorithm}
 
@@ -893,11 +997,54 @@ Our random minimal latent polytree generation follows Algorithm~\ref{alg:pruefer
 
 The key innovation in our approach is the systematic identification of latent variables based on out-degree. Any node with out-degree $\geq 2$ is designated as latent, ensuring that the resulting structure satisfies the minimality condition of Definition~\ref{def:minimal_polytree}.
 
+
+\subsection{Evaluation Metrics and Methodology}
+
+\subsubsection{Performance Measures}
+
+We assess structural recovery using precision and recall metrics adapted to the latent variable setting:
+
+\begin{definition}[Latent-aware precision and recall]
+Let $\mathcal{E}_{\text{true}}$ be the set of true latent-to-observed edges and $\mathcal{E}_{\text{pred}}$ be the predicted edges. Define:
+\begin{align}
+\text{Precision} &= \frac{|\mathcal{E}_{\text{pred}} \cap \mathcal{E}_{\text{true}}|}{|\mathcal{E}_{\text{pred}}|}, \\
+\text{Recall} &= \frac{|\mathcal{E}_{\text{pred}} \cap \mathcal{E}_{\text{true}}|}{|\mathcal{E}_{\text{true}}|}.
+\end{align}
+\end{definition}
+
+Since latent variables can be recovered with different names, we employ a bipartite matching algorithm that maximizes Jaccard similarity between the children sets of true and predicted latent nodes:
+
+\begin{algorithm}[H]
+\caption{Latent Node Matching}
+\label{alg:latent_matching}
+\begin{algorithmic}[1]
+    \Require True latent children $\{C_t^{\text{true}}\}$, predicted latent children $\{C_r^{\text{pred}}\}$
+    \Ensure Optimal matching between latent nodes
+    \State Compute Jaccard similarities: $J(C_t, C_r) = |C_t \cap C_r| / |C_t \cup C_r|$
+    \State Solve maximum weight bipartite matching with threshold $\tau = 0.5$
+    \State Return matched pairs $(t, r)$ with $J(C_t, C_r) \geq \tau$
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Experimental Protocol}
+
+Our evaluation consists of the following steps:
+
+\begin{enumerate}[label=(\arabic*)]
+\item \textbf{Batch generation}: Generate $K = 20$ independent random latent polytrees using different seeds
+\item \textbf{Structure recovery}: Apply our algorithm to each observed population discrepancy matrix
+\item \textbf{Latent matching}: Match predicted latent nodes to ground truth using Algorithm~\ref{alg:latent_matching}
+\item \textbf{Metric computation}: Calculate precision, recall, and F1-score for latent-to-observed edges
+\item \textbf{Statistical analysis}: Report mean, standard deviation, and distribution statistics
+\end{enumerate}
+
+
+
 \subsection{Population-Level Experimental Design}
 
 \subsubsection{Parameter Configuration}
 
-Our experiments operate in the \textbf{population regime}, examining the theoretical performance of our discrepancy-based algorithms without finite-sample noise. This approach allows us to isolate algorithmic performance from estimation uncertainty and focus on the fundamental scalability characteristics of the method.
+Our experiments in this section operate in the \textbf{population regime}, examining the theoretical performance of our discrepancy-based algorithms without finite-sample noise. This approach allows us to isolate algorithmic performance from estimation uncertainty and focus on the fundamental scalability characteristics of the method.
 
 \textbf{Core experimental parameters:}
 \begin{itemize}
@@ -942,45 +1089,6 @@ Our experimental investigation addresses two primary research questions:
 
 The \textbf{Critical Edge Weight Threshold Phenomenon} (Section~\ref{subsec:threshold_phenomenon}) provides the definitive answer to both questions, revealing that numerical conditioning rather than algorithmic limitations determines scalability.
 
-\subsection{Evaluation Metrics and Methodology}
-
-\subsubsection{Performance Measures}
-
-We assess structural recovery using precision and recall metrics adapted to the latent variable setting:
-
-\begin{definition}[Latent-aware precision and recall]
-Let $\mathcal{E}_{\text{true}}$ be the set of true latent-to-observed edges and $\mathcal{E}_{\text{pred}}$ be the predicted edges. Define:
-\begin{align}
-\text{Precision} &= \frac{|\mathcal{E}_{\text{pred}} \cap \mathcal{E}_{\text{true}}|}{|\mathcal{E}_{\text{pred}}|}, \\
-\text{Recall} &= \frac{|\mathcal{E}_{\text{pred}} \cap \mathcal{E}_{\text{true}}|}{|\mathcal{E}_{\text{true}}|}.
-\end{align}
-\end{definition}
-
-Since latent variables can be recovered with different names, we employ a bipartite matching algorithm that maximizes Jaccard similarity between the children sets of true and predicted latent nodes:
-
-\begin{algorithm}[H]
-\caption{Latent Node Matching}
-\label{alg:latent_matching}
-\begin{algorithmic}[1]
-    \Require True latent children $\{C_t^{\text{true}}\}$, predicted latent children $\{C_r^{\text{pred}}\}$
-    \Ensure Optimal matching between latent nodes
-    \State Compute Jaccard similarities: $J(C_t, C_r) = |C_t \cap C_r| / |C_t \cup C_r|$
-    \State Solve maximum weight bipartite matching with threshold $\tau = 0.5$
-    \State Return matched pairs $(t, r)$ with $J(C_t, C_r) \geq \tau$
-\end{algorithmic}
-\end{algorithm}
-
-\subsubsection{Experimental Protocol}
-
-Our evaluation consists of the following steps:
-
-\begin{enumerate}[label=(\arabic*)]
-\item \textbf{Batch generation}: Generate $K = 20$ independent random latent polytrees using different seeds
-\item \textbf{Structure recovery}: Apply our algorithm to each observed population discrepancy matrix
-\item \textbf{Latent matching}: Match predicted latent nodes to ground truth using Algorithm~\ref{alg:latent_matching}
-\item \textbf{Metric computation}: Calculate precision, recall, and F1-score for latent-to-observed edges
-\item \textbf{Statistical analysis}: Report mean, standard deviation, and distribution statistics
-\end{enumerate}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

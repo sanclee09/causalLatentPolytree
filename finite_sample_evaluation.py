@@ -1,16 +1,5 @@
-#!/usr/bin/env python3
-"""
-finite_sample_evaluation.py
-
-Comprehensive finite-sample evaluation for the 4-node polytree example.
-Compares finite-sample moment estimates and discrepancy matrices against population values
-across different sample sizes.
-
-Author: For TUM thesis on Linear non-Gaussian models with latent polytree structure
-"""
-
 from __future__ import annotations
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Any
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -23,7 +12,7 @@ from polytree_discrepancy import (
     topo_order_from_edges,
     compare_sample_vs_population_moments,
 )
-from learn_with_hidden import detect_learnable_nodes, observed_gamma_from_params
+from learn_with_hidden import detect_learnable_nodes
 from latent_polytree_truepoly import get_polytree_algo3
 
 
