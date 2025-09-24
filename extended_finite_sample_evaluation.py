@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-"""
-working_extended_finite_sample_evaluation.py
-
-Working version that bypasses the structure_learning_check issue
-and extracts the discrepancy matrix directly.
-"""
-
 from __future__ import annotations
 from typing import Dict, List, Any
 import numpy as np
@@ -23,14 +15,14 @@ from polytree_discrepancy import (
 from latent_polytree_truepoly import get_polytree_algo3
 
 
-def run_finite_sample_for_random_polytree_working(
+def run_finite_sample_for_random_polytree_fixed(
     n_nodes: int, sample_sizes: List[int], n_trials: int = 3, seed: int = 42
 ) -> Dict[str, Any]:
     """
-    Working version that bypasses the structure_learning_check issue.
+    Fixed version with correct structure recovery implementation.
     """
     print(f"\n{'=' * 60}")
-    print(f"FINITE-SAMPLE EVALUATION: RANDOM POLYTREE (n={n_nodes}) - WORKING")
+    print(f"FINITE-SAMPLE EVALUATION: RANDOM POLYTREE (n={n_nodes}) - FIXED")
     print(f"{'=' * 60}")
 
     # Generate random polytree
@@ -60,10 +52,19 @@ def run_finite_sample_for_random_polytree_working(
     all_nodes = sorted(set(sum(polytree_sample["edges_directed"], ())))
     all_nodes = topo_order_from_edges(all_nodes, edges_dict)
     observed_nodes = polytree_sample["observed_nodes"]
+    hidden_nodes = polytree_sample["hidden_nodes"]
 
     # Create gamma parameters (using same as your function)
     gamma_shapes = {node: 2.5 for node in all_nodes}
     gamma_scales = {node: 1.0 for node in all_nodes}
+
+    # *** KEY FIX: Get the ground truth observed edges ***
+    true_observed_edges = []
+    for (parent, child), weight in edges_dict.items():
+        if parent in observed_nodes and child in observed_nodes:
+            true_observed_edges.append((parent, child))
+
+    print(f"  Ground truth observed edges: {true_observed_edges}")
 
     results = []
 
@@ -81,7 +82,7 @@ def run_finite_sample_for_random_polytree_working(
 
         for trial in range(n_trials):
             try:
-                # Use your existing functions directly (bypassing run_polytree_discrepancy_for_random_tree)
+                # Generate finite-sample data
                 noise_samples = generate_noise_samples(
                     all_nodes,
                     gamma_shapes,
@@ -113,21 +114,44 @@ def run_finite_sample_for_random_polytree_working(
                 )
                 sample_results["discrepancy_errors"].append(discrepancy_error)
 
-                # Test structure recovery on observed discrepancy matrix
+                # *** FIXED STRUCTURE RECOVERY LOGIC ***
                 try:
+                    # Run structure recovery algorithm
                     recovered_polytree = get_polytree_algo3(Gamma_finite_obs)
-                    recovered_edges = set(recovered_polytree.edges)
-                    expected_edges = set(polytree_sample["recovered_edges"])
 
-                    success = (
-                        len(recovered_edges.symmetric_difference(expected_edges)) <= 1
+                    # Extract recovered edges with proper mapping
+                    def map_name(x: str) -> str:
+                        if x.startswith("h"):  # latent node from algorithm
+                            return x
+                        # Map back to original observed node names
+                        return observed_nodes[int(x)]
+
+                    recovered_edges_all = [
+                        (map_name(parent), map_name(child))
+                        for (parent, child) in recovered_polytree.edges
+                    ]
+
+                    # Filter to only observed-to-observed edges (ignore latent edges)
+                    recovered_observed_edges = [
+                        edge
+                        for edge in recovered_edges_all
+                        if not (edge[0].startswith("h") or edge[1].startswith("h"))
+                    ]
+
+                    # Check if recovery was successful
+                    recovery_success = set(true_observed_edges) == set(
+                        recovered_observed_edges
                     )
-                    sample_results["structure_recovery_success"].append(success)
+                    sample_results["structure_recovery_success"].append(
+                        recovery_success
+                    )
 
                     if trial == 0:  # Print details for first trial
                         print(
-                            f"    Trial {trial}: error={discrepancy_error:.6f}, success={success}"
+                            f"    Trial {trial}: error={discrepancy_error:.6f}, success={recovery_success}"
                         )
+                        print(f"      True edges: {true_observed_edges}")
+                        print(f"      Recovered edges: {recovered_observed_edges}")
 
                 except Exception as e:
                     print(f"    Structure recovery failed in trial {trial}: {e}")
@@ -171,85 +195,99 @@ def run_finite_sample_for_random_polytree_working(
             "edges_directed": polytree_sample["edges_directed"],
             "hidden_nodes": polytree_sample["hidden_nodes"],
             "observed_nodes": polytree_sample["observed_nodes"],
+            "true_observed_edges": true_observed_edges,
         },
         "results": results,
     }
 
 
-def plot_convergence_analysis(all_results: Dict[int, Dict[str, Any]]):
-    """Plot convergence analysis showing n^(-1/2) behavior."""
+def plot_convergence_analysis_fixed(all_results: Dict[int, Dict[str, Any]]):
+    """Plot convergence analysis showing n^(-1/2) behavior with fixed recovery rates."""
     fig, axes = plt.subplots(2, 2, figsize=(15, 12))
     fig.suptitle(
-        "Finite-Sample Analysis: Random Polytrees (Working Version)", fontsize=14
+        "Finite-Sample Analysis: Random Polytrees (Fixed Version)", fontsize=16
     )
 
-    colors = ["blue", "red", "green", "orange", "purple"]
+    colors = plt.cm.tab10(np.linspace(0, 1, len(all_results)))
 
-    for i, (n_nodes, data) in enumerate(all_results.items()):
-        color = colors[i % len(colors)]
-        info = data["polytree_info"]
+    for (n_nodes, data), color in zip(all_results.items(), colors):
         results = data["results"]
-
-        label = f"n={n_nodes} ({info['n_hidden']}H, {info['n_observed']}O)"
+        info = data["polytree_info"]
 
         sample_sizes = [r["n_samples"] for r in results]
         error_means = [r["discrepancy_error_mean"] for r in results]
         error_stds = [r["discrepancy_error_std"] for r in results]
         success_rates = [r["structure_success_rate"] for r in results]
 
-        # Filter out infinite errors
-        finite_mask = [np.isfinite(e) for e in error_means]
-        plot_sample_sizes = [s for s, mask in zip(sample_sizes, finite_mask) if mask]
-        plot_error_means = [e for e, mask in zip(error_means, finite_mask) if mask]
-        plot_error_stds = [e for e, mask in zip(error_stds, finite_mask) if mask]
+        label = f"n={n_nodes} ({info['n_hidden']}H, {info['n_observed']}O)"
 
-        if plot_sample_sizes:
-            # Error convergence
-            axes[0, 0].loglog(
-                plot_sample_sizes, plot_error_means, "o-", color=color, label=label
+        # Only plot finite errors
+        plot_sample_sizes = []
+        plot_error_means = []
+        plot_error_stds = []
+        plot_success_rates = []
+
+        for i, (n, err, std, succ) in enumerate(
+            zip(sample_sizes, error_means, error_stds, success_rates)
+        ):
+            if np.isfinite(err):
+                plot_sample_sizes.append(n)
+                plot_error_means.append(err)
+                plot_error_stds.append(std)
+                plot_success_rates.append(succ)
+
+        if not plot_sample_sizes:
+            continue
+
+        plot_sample_sizes = np.array(plot_sample_sizes)
+        plot_error_means = np.array(plot_error_means)
+        plot_error_stds = np.array(plot_error_stds)
+        plot_success_rates = np.array(plot_success_rates)
+
+        # Error convergence with error bars
+        axes[0, 0].fill_between(
+            plot_sample_sizes,
+            plot_error_means - plot_error_stds,
+            plot_error_means + plot_error_stds,
+            alpha=0.3,
+            color=color,
+        )
+        axes[0, 0].loglog(
+            plot_sample_sizes, plot_error_means, "o-", color=color, label=label
+        )
+
+        # Structure recovery (FIXED)
+        axes[0, 1].semilogx(
+            plot_sample_sizes, plot_success_rates, "o-", color=color, label=label
+        )
+
+        # Theoretical n^(-1/2) comparison
+        if len(plot_sample_sizes) > 1:
+            theoretical = plot_error_means[0] * np.sqrt(
+                plot_sample_sizes[0] / plot_sample_sizes
             )
-            axes[0, 0].fill_between(
+            axes[1, 0].loglog(
                 plot_sample_sizes,
-                np.array(plot_error_means) - np.array(plot_error_stds),
-                np.array(plot_error_means) + np.array(plot_error_stds),
-                alpha=0.2,
+                theoretical,
+                "--",
                 color=color,
+                alpha=0.5,
+                label=f"{label} Theory",
+            )
+            axes[1, 0].loglog(
+                plot_sample_sizes,
+                plot_error_means,
+                "o-",
+                color=color,
+                label=f"{label} Observed",
             )
 
-            # Theoretical n^(-1/2) comparison
-            if len(plot_sample_sizes) > 1:
-                theoretical = plot_error_means[0] * np.sqrt(
-                    plot_sample_sizes[0] / np.array(plot_sample_sizes)
-                )
-                axes[1, 0].loglog(
-                    plot_sample_sizes,
-                    theoretical,
-                    "--",
-                    color=color,
-                    alpha=0.5,
-                    label=f"{label} Theory",
-                )
-                axes[1, 0].loglog(
-                    plot_sample_sizes,
-                    plot_error_means,
-                    "o-",
-                    color=color,
-                    label=f"{label} Observed",
-                )
-
-        # Structure recovery
-        axes[0, 1].semilogx(sample_sizes, success_rates, "o-", color=color, label=label)
-
-    # Convergence efficiency analysis
-    for n_nodes, data in all_results.items():
-        results = data["results"]
-        valid_results = [r for r in results if np.isfinite(r["discrepancy_error_mean"])]
-
-        if len(valid_results) >= 2:
-            first_n = valid_results[0]["n_samples"]
-            first_error = valid_results[0]["discrepancy_error_mean"]
-            last_n = valid_results[-1]["n_samples"]
-            last_error = valid_results[-1]["discrepancy_error_mean"]
+        # Convergence efficiency analysis
+        if len(plot_error_means) >= 2:
+            first_n = plot_sample_sizes[0]
+            first_error = plot_error_means[0]
+            last_n = plot_sample_sizes[-1]
+            last_error = plot_error_means[-1]
 
             if last_error > 0:
                 sample_ratio = last_n / first_n
@@ -257,7 +295,9 @@ def plot_convergence_analysis(all_results: Dict[int, Dict[str, Any]]):
                 theoretical_ratio = np.sqrt(sample_ratio)
                 efficiency = error_ratio / theoretical_ratio
 
-                axes[1, 1].scatter([n_nodes], [efficiency], s=100, alpha=0.7)
+                axes[1, 1].scatter(
+                    [n_nodes], [efficiency], s=100, alpha=0.7, color=color
+                )
                 axes[1, 1].annotate(
                     f"n={n_nodes}\nEff={efficiency:.2f}",
                     (n_nodes, efficiency),
@@ -293,82 +333,78 @@ def plot_convergence_analysis(all_results: Dict[int, Dict[str, Any]]):
     axes[1, 1].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig("working_random_polytree_analysis.pdf", dpi=300, bbox_inches="tight")
-    plt.savefig("working_random_polytree_analysis.png", dpi=300, bbox_inches="tight")
+    plt.savefig("fixed_random_polytree_analysis.pdf", dpi=300, bbox_inches="tight")
+    plt.savefig("fixed_random_polytree_analysis.png", dpi=300, bbox_inches="tight")
     plt.show()
 
 
-def print_convergence_summary(all_results: Dict[int, Dict[str, Any]]):
-    """Print detailed convergence analysis."""
-    print("\n" + "=" * 70)
-    print("CONVERGENCE ANALYSIS SUMMARY")
-    print("=" * 70)
+def print_convergence_summary_fixed(all_results: Dict[int, Dict[str, Any]]):
+    """Print detailed convergence analysis with fixed structure recovery."""
+    print("\n" + "=" * 80)
+    print("CONVERGENCE ANALYSIS SUMMARY (FIXED VERSION)")
+    print("=" * 80)
 
     for n_nodes, data in all_results.items():
         info = data["polytree_info"]
         results = data["results"]
 
+        print(f"\nPolytree Size: {n_nodes} nodes")
         print(
-            f"\nPolytree n={n_nodes} ({info['n_hidden']} hidden, {info['n_observed']} observed):"
+            f"  Configuration: {info['n_hidden']} hidden, {info['n_observed']} observed"
         )
-        print("-" * 50)
+        print(f"  True observed edges: {info['true_observed_edges']}")
 
-        valid_results = []
+        print(f"\n  {'Sample Size':<12} {'Discrepancy Error':<20} {'Success Rate':<15}")
+        print(f"  {'-' * 12} {'-' * 20} {'-' * 15}")
+
         for result in results:
+            n_samples = result["n_samples"]
             error_mean = result["discrepancy_error_mean"]
-            error_std = result["discrepancy_error_std"]
             success_rate = result["structure_success_rate"]
 
             if np.isfinite(error_mean):
-                print(
-                    f"  n_samples={result['n_samples']:,}: error={error_mean:.6f}±{error_std:.6f}, recovery={success_rate:.3f}"
-                )
-                valid_results.append((result["n_samples"], error_mean))
+                print(f"  {n_samples:<12,} {error_mean:<20.6f} {success_rate:<15.3f}")
             else:
-                print(
-                    f"  n_samples={result['n_samples']:,}: error=FAILED, recovery={success_rate:.3f}"
-                )
+                print(f"  {n_samples:<12,} {'FAILED':<20} {success_rate:<15.3f}")
 
-        # Convergence analysis
+        # Convergence efficiency calculation
+        valid_results = [r for r in results if np.isfinite(r["discrepancy_error_mean"])]
         if len(valid_results) >= 2:
-            print(f"\n  Convergence Analysis:")
-            first_n, first_error = valid_results[0]
-            last_n, last_error = valid_results[-1]
+            first_n = valid_results[0]["n_samples"]
+            first_error = valid_results[0]["discrepancy_error_mean"]
+            last_n = valid_results[-1]["n_samples"]
+            last_error = valid_results[-1]["discrepancy_error_mean"]
 
-            sample_increase = last_n / first_n
-            error_decrease = first_error / last_error
-            theoretical_decrease = np.sqrt(sample_increase)
-            efficiency = error_decrease / theoretical_decrease
+            if last_error > 0:
+                sample_ratio = last_n / first_n
+                error_ratio = first_error / last_error
+                theoretical_ratio = np.sqrt(sample_ratio)
+                efficiency = error_ratio / theoretical_ratio
 
-            print(
-                f"    Sample size: {first_n:,} → {last_n:,} ({sample_increase:.1f}x increase)"
-            )
-            print(
-                f"    Error: {first_error:.6f} → {last_error:.6f} ({error_decrease:.2f}x decrease)"
-            )
-            print(
-                f"    Theoretical n^(-1/2): {theoretical_decrease:.2f}x decrease expected"
-            )
-            print(f"    Convergence efficiency: {efficiency:.3f}")
+                print(f"\n  Convergence Analysis:")
+                print(f"    Sample size range: {first_n:,} → {last_n:,}")
+                print(f"    Error improvement: {error_ratio:.2f}x")
+                print(f"    Theoretical n^(-1/2): {theoretical_ratio:.2f}x")
+                print(f"    Efficiency: {efficiency:.2f}")
 
-            if efficiency >= 0.8:
-                print(f"    → Excellent convergence! Very close to n^(-1/2)")
-            elif efficiency >= 0.5:
-                print(f"    → Good convergence behavior")
-            elif efficiency >= 0.2:
-                print(f"    → Moderate convergence")
-            else:
-                print(f"    → Poor convergence - may need investigation")
+                if efficiency >= 0.8:
+                    print(f"    → Excellent convergence (Very close to n^(-1/2))")
+                elif efficiency >= 0.5:
+                    print(f"    → Good convergence behavior")
+                elif efficiency >= 0.2:
+                    print(f"    → Moderate convergence")
+                else:
+                    print(f"    → Poor convergence - may need investigation")
 
 
 def main():
-    """Main function."""
-    print("Working Extended Finite-Sample Evaluation for Random Polytrees")
+    """Main function with fixed structure recovery."""
+    print("Fixed Extended Finite-Sample Evaluation for Random Polytrees")
     print("=" * 70)
 
     # Test with single polytree size first
     polytree_sizes = [10]
-    sample_sizes = [100, 1000, 10000, 100000, 1000000, 10000000]
+    sample_sizes = [100, 1000, 10000, 100000, 1000000]
     n_trials = 20
     base_seed = 42
 
@@ -380,7 +416,7 @@ def main():
     all_results = {}
 
     for n_nodes in polytree_sizes:
-        results = run_finite_sample_for_random_polytree_working(
+        results = run_finite_sample_for_random_polytree_fixed(
             n_nodes=n_nodes,
             sample_sizes=sample_sizes,
             n_trials=n_trials,
@@ -389,10 +425,10 @@ def main():
         all_results[n_nodes] = results
 
     # Print summary
-    print_convergence_summary(all_results)
+    print_convergence_summary_fixed(all_results)
 
     # Create plots
-    plot_convergence_analysis(all_results)
+    plot_convergence_analysis_fixed(all_results)
 
     # Save results
     summary_data = []
@@ -412,8 +448,8 @@ def main():
             )
 
     summary_df = pd.DataFrame(summary_data)
-    summary_df.to_csv("working_random_polytree_results.csv", index=False)
-    print(f"\nResults saved to 'working_random_polytree_results.csv'")
+    summary_df.to_csv("fixed_random_polytree_results.csv", index=False)
+    print(f"\nResults saved to 'fixed_random_polytree_results.csv'")
 
     return all_results, summary_df
 
