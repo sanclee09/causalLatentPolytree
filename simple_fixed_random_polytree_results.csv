@@ -1,0 +1,2 @@
+polytree_size,n_hidden,n_observed,n_true_observed_edges,n_samples,discrepancy_error_mean,discrepancy_error_std,structure_success_rate
+10,2,8,5,1000000,1.225759828525706,0.2975443243852951,0.0

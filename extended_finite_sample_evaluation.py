@@ -9,7 +9,6 @@ from polytree_discrepancy import (
     generate_noise_samples,
     apply_lsem_transformation,
     finite_sample_discrepancy,
-    population_discrepancy,
     topo_order_from_edges,
 )
 from latent_polytree_truepoly import get_polytree_algo3
@@ -145,13 +144,6 @@ def run_finite_sample_for_random_polytree_fixed(
                     sample_results["structure_recovery_success"].append(
                         recovery_success
                     )
-
-                    if trial == 0:  # Print details for first trial
-                        print(
-                            f"    Trial {trial}: error={discrepancy_error:.6f}, success={recovery_success}"
-                        )
-                        print(f"      True edges: {true_observed_edges}")
-                        print(f"      Recovered edges: {recovered_observed_edges}")
 
                 except Exception as e:
                     print(f"    Structure recovery failed in trial {trial}: {e}")
@@ -403,9 +395,9 @@ def main():
     print("=" * 70)
 
     # Test with single polytree size first
-    polytree_sizes = [10]
-    sample_sizes = [100, 1000, 10000, 100000, 1000000]
-    n_trials = 20
+    polytree_sizes = [5]
+    sample_sizes = [10000000]
+    n_trials = 10
     base_seed = 42
 
     print(f"Configuration:")
