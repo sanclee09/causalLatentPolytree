@@ -395,7 +395,7 @@ def main():
     print("=" * 70)
 
     # Test with single polytree size first
-    polytree_sizes = [5]
+    polytree_sizes = [10, 15, 20, 25, 30]
     sample_sizes = [10000000]
     n_trials = 10
     base_seed = 42
