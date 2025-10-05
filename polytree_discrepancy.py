@@ -447,22 +447,25 @@ def generate_noise_samples(
     gamma_scales: Dict[str, float],
     n_samples: int,
     seed: int,
+    verbose: bool = True,  # ADD THIS
 ) -> Dict[str, np.ndarray]:
     """Generate centered Gamma noise using analytic mean (shape*scale)."""
     np.random.seed(seed)
     noise_samples: Dict[str, np.ndarray] = {}
 
-    print("STEP 1: Centered gamma noise generation")
-    print("-" * 40)
+    if verbose:  # ADD THIS
+        print("STEP 1: Centered gamma noise generation")
+        print("-" * 40)
     for node in nodes:
         shape, scale = gamma_shapes[node], gamma_scales[node]
         epsilon = np.random.gamma(shape=shape, scale=scale, size=n_samples)
         epsilon -= shape * scale  # analytic centering
         noise_samples[node] = epsilon
-        print(
-            f"{node}: Gamma({shape:.1f}, {scale:.1f}) centered → "
-            f"mean={np.mean(epsilon):.4f}, std={np.std(epsilon):.3f}"
-        )
+        if verbose:  # ADD THIS
+            print(
+                f"{node}: Gamma({shape:.1f}, {scale:.1f}) centered → "
+                f"mean={np.mean(epsilon):.4f}, std={np.std(epsilon):.3f}"
+            )
     return noise_samples
 
 
@@ -470,10 +473,12 @@ def apply_lsem_transformation(
     noise_samples: Dict[str, np.ndarray],
     edges: Dict[Tuple[str, str], float],
     nodes: List[str],
+    verbose: bool = True,  # ADD THIS
 ) -> Dict[str, np.ndarray]:
     """X = (I - Λ)^(-1) ε with Λ[j,i] = weight for i→j."""
-    print(f"\nSTEP 2: LSEM with strong consistent weights")
-    print("-" * 45)
+    if verbose:  # ADD THIS
+        print(f"\nSTEP 2: LSEM with strong consistent weights")
+        print("-" * 45)
     n = len(nodes)
     idx = {v: i for i, v in enumerate(nodes)}
 
@@ -481,27 +486,31 @@ def apply_lsem_transformation(
     for (parent, child), w in edges.items():
         Lambda[idx[child], idx[parent]] = w
 
-    print("Lambda matrix:")
-    print(pd.DataFrame(Lambda, index=nodes, columns=nodes))
+    if verbose:  # ADD THIS
+        print("Lambda matrix:")
+        print(pd.DataFrame(Lambda, index=nodes, columns=nodes))
 
     alpha = np.linalg.inv(np.eye(n) - Lambda)
-    print(f"\nAlpha matrix condition number: {np.linalg.cond(alpha):.2f}")
+    if verbose:  # ADD THIS
+        print(f"\nAlpha matrix condition number: {np.linalg.cond(alpha):.2f}")
 
     epsilon_matrix = np.column_stack([noise_samples[v] for v in nodes])
     X_matrix = epsilon_matrix @ alpha.T
 
     X_samples = {nodes[i]: X_matrix[:, i] for i in range(n)}
-    print("✓ LSEM transformation completed")
-    print(f"X sample means: {[f'{np.mean(X_samples[v]):.3f}' for v in nodes]}")
-    print(f"X sample stds:  {[f'{np.std(X_samples[v]):.3f}' for v in nodes]}")
+    if verbose:  # ADD THIS
+        print("✓ LSEM transformation completed")
+        print(f"X sample means: {[f'{np.mean(X_samples[v]):.3f}' for v in nodes]}")
+        print(f"X sample stds:  {[f'{np.std(X_samples[v]):.3f}' for v in nodes]}")
     return X_samples
 
 
 def finite_sample_discrepancy(
-    X_samples: Dict[str, np.ndarray], nodes: List[str]
+    X_samples: Dict[str, np.ndarray], nodes: List[str], verbose: bool = True  # ADD THIS
 ) -> np.ndarray:
-    print(f"\nSTEP 3: Improved discrepancy computation")
-    print("-" * 45)
+    if verbose:  # ADD THIS
+        print(f"\nSTEP 3: Improved discrepancy computation")
+        print("-" * 45)
     X = np.column_stack([X_samples[v] for v in nodes])
     return compute_discrepancy_from_samples(X)
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
-from typing import List, Tuple, Dict, Set, Optional
+from typing import Dict, Tuple, List, Any, Optional, Set
 import random
-
+from collections import defaultdict, deque
 from learn_with_hidden import observed_gamma_from_params
 
 # ---------- Prüfer utilities ----------
@@ -43,6 +43,36 @@ def pruefer_to_tree(seq: List[int]) -> List[Tuple[int, int]]:
 
 
 # ---------- Orientation ----------
+
+
+def orient_tree_from_root(
+    edges_undirected: List[Tuple[int, int]],
+    root: int,
+) -> List[Tuple[int, int]]:
+    """Orient the undirected tree by directing all edges away from the chosen root."""
+    nodes = sorted({u for e in edges_undirected for u in e})
+    adj = {u: set() for u in nodes}
+    for u, v in edges_undirected:
+        adj[u].add(v)
+        adj[v].add(u)
+
+    parent = {root: None}
+    order = [root]
+    q = [root]
+    while q:
+        x = q.pop(0)
+        for y in adj[x]:
+            if y not in parent:
+                parent[y] = x
+                order.append(y)
+                q.append(y)
+
+    directed: List[Tuple[int, int]] = []
+    for v in order:
+        p = parent[v]
+        if p is not None:
+            directed.append((p, v))
+    return directed
 
 
 def orient_tree_random_topo(
@@ -259,12 +289,12 @@ def get_random_polytree_via_pruefer(
     )
     from latent_polytree_truepoly import get_polytree_algo3
 
-    observed_polytree = get_polytree_algo3(Gamma_obs)
+    recovered_polytree = get_polytree_algo3(Gamma_obs)
 
     def name(x: str) -> str:
         return x if x.startswith("h") else observed_nodes[int(x)]
 
-    edges_named = [(name(p), name(c)) for (p, c) in observed_polytree.edges]
+    edges_named = [(name(p), name(c)) for (p, c) in recovered_polytree.edges]
     return {
         "edges_undirected": undirected,
         "edges_directed": [(f"v{u}", f"v{v}") for (u, v) in directed],
@@ -275,6 +305,188 @@ def get_random_polytree_via_pruefer(
         "observed_nodes": observed_nodes,
         "Gamma_obs": Gamma_obs,
         "recovered_edges": edges_named,
+    }
+
+
+def is_minimal_latent_polytree(
+    edges: List[Tuple[int, int]], latent_nodes: Set[int]
+) -> bool:
+    """
+    Check if latent nodes form a minimal latent polytree.
+    A latent polytree is minimal if no latent node is redundant.
+
+    A latent node is redundant if:
+    - It has out-degree >= 2 (branching)
+    - BUT all its children are observed leaf nodes (no descendants)
+
+    In such cases, the latent node doesn't add identifiability and can be removed.
+    """
+    if not latent_nodes:
+        return True
+
+    children_map = defaultdict(set)
+    for u, v in edges:
+        children_map[u].add(v)
+
+    for latent in latent_nodes:
+        children = children_map[latent]
+
+        # Check if this latent has at least one child that:
+        # 1. Is also latent (forms a latent chain), OR
+        # 2. Is observed but has its own children (not a leaf)
+        has_nonleaf_child = False
+        for child in children:
+            if child in latent_nodes:
+                # Child is latent - this is good
+                has_nonleaf_child = True
+                break
+            elif len(children_map[child]) > 0:
+                # Child is observed but has descendants - this is good
+                has_nonleaf_child = True
+                break
+
+        # If all children are observed leaves, this latent is redundant
+        if not has_nonleaf_child:
+            return False
+
+    return True
+
+
+def generate_random_latent_polytree(
+    n: int,
+    seed: Optional[int] = None,
+    weights_range: Tuple[float, float] = (-1.0, 1.0),
+    avoid_small: float = 0.8,
+    ensure_at_least_one_hidden: bool = True,
+    max_attempts: int = 1000,
+) -> Dict[str, Any]:
+    """
+    Generate a random MINIMAL latent polytree structure.
+    Only nodes with undirected degree >= 3 can be latent (non-redundant).
+    """
+    rng = random.Random(seed)
+
+    attempts = 0
+    while attempts < max_attempts:
+        attempts += 1
+
+        # Generate undirected tree
+        seq = random_pruefer_sequence(n, rng)
+        undirected = pruefer_to_tree(seq)
+
+        # Compute undirected degrees
+        from collections import defaultdict
+
+        deg = defaultdict(int)
+        for u, v in undirected:
+            deg[u] += 1
+            deg[v] += 1
+
+        # Only nodes with degree >= 3 can be latent (branching points)
+        candidates = [u for u, d in deg.items() if d >= 3]
+
+        if ensure_at_least_one_hidden and not candidates:
+            continue
+
+        # Pick latent nodes from candidates
+        if candidates:
+            k_hidden = (
+                rng.randint(1, len(candidates))
+                if ensure_at_least_one_hidden
+                else rng.randint(0, len(candidates))
+            )
+            latent_integer_nodes = (
+                set(rng.sample(candidates, k_hidden)) if k_hidden > 0 else set()
+            )
+        else:
+            latent_integer_nodes = set()
+
+        if ensure_at_least_one_hidden and not latent_integer_nodes:
+            continue
+
+        # Orient from a latent root to avoid observed→latent edges
+        if latent_integer_nodes:
+            root = rng.choice(list(latent_integer_nodes))
+            directed = orient_tree_from_root(undirected, root)
+        else:
+            # No latents - use random orientation
+            directed = orient_tree_random_topo(undirected, rng, force_hidden_root=False)
+
+        # Valid minimal latent polytree found
+        break
+
+    if attempts >= max_attempts:
+        raise ValueError(
+            f"Could not generate minimal latent polytree after {max_attempts} attempts"
+        )
+
+    # Rest of the code remains the same (weight assignment, renaming, etc.)
+    weights_integer = random_weights(
+        directed,
+        rng,
+        low=weights_range[0],
+        high=weights_range[1],
+        avoid_small=avoid_small,
+    )
+
+    # Topological ordering for consistent latent node naming
+    all_integer_nodes = sorted({x for e in directed for x in e})
+
+    from collections import deque
+
+    in_degree = {node: 0 for node in all_integer_nodes}
+    adj = {node: [] for node in all_integer_nodes}
+    for u, v in directed:
+        adj[u].append(v)
+        in_degree[v] += 1
+
+    queue = deque([node for node in all_integer_nodes if in_degree[node] == 0])
+    topo_order = []
+    while queue:
+        node = queue.popleft()
+        topo_order.append(node)
+        for neighbor in adj[node]:
+            in_degree[neighbor] -= 1
+            if in_degree[neighbor] == 0:
+                queue.append(neighbor)
+
+    # Assign names: latent nodes by topo order, observed nodes by integer order
+    latent_in_topo = [node for node in topo_order if node in latent_integer_nodes]
+    observed_in_order = sorted(
+        [node for node in all_integer_nodes if node not in latent_integer_nodes]
+    )
+
+    # Create mapping from integer to named nodes
+    node_mapping = {}
+    for i, node in enumerate(latent_in_topo):
+        node_mapping[node] = f"h{i + 1}"
+    for i, node in enumerate(observed_in_order):
+        node_mapping[node] = f"v{i + 1}"
+
+    # Rebuild edges with new names
+    renamed_edges = {}
+    for (u_str, v_str), weight in weights_integer.items():
+        # Extract integer from 'v3' -> 3
+        u_int = int(u_str[1:])
+        v_int = int(v_str[1:])
+
+        # Map to new names
+        u_name = node_mapping[u_int]
+        v_name = node_mapping[v_int]
+        renamed_edges[(u_name, v_name)] = weight
+
+    # Sort nodes: latent first (h1, h2, ...), then observed (v1, v2, ...)
+    all_nodes = sorted(
+        node_mapping.values(), key=lambda x: (0 if x.startswith("h") else 1, int(x[1:]))
+    )
+    observed_nodes = [node_mapping[n] for n in observed_in_order]
+    latent_nodes = [node_mapping[n] for n in latent_in_topo]
+
+    return {
+        "edges": renamed_edges,
+        "all_nodes": all_nodes,
+        "observed_nodes": observed_nodes,
+        "latent_nodes": latent_nodes,
     }
 
 

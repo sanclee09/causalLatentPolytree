@@ -279,6 +279,59 @@ def _get_connected_directed_trees(
     return connected_T1_and_T2
 
 
+def rename_latent_nodes_by_topology(polytree: PolyDAG) -> PolyDAG:
+    """
+    Rename latent nodes (h1, h2, ...) according to topological order.
+    """
+
+    # Topological sort
+    def topo_sort(nodes: List[str], edges: List[Tuple[str, str]]) -> List[str]:
+        from collections import deque
+
+        in_degree = {node: 0 for node in nodes}
+        adj = {node: [] for node in nodes}
+
+        for parent, child in edges:
+            adj[parent].append(child)
+            in_degree[child] += 1
+
+        queue = deque([node for node in nodes if in_degree[node] == 0])
+        result = []
+
+        while queue:
+            node = queue.popleft()
+            result.append(node)
+            for neighbor in adj[node]:
+                in_degree[neighbor] -= 1
+                if in_degree[neighbor] == 0:
+                    queue.append(neighbor)
+
+        return result
+
+    nodes = polytree.nodes
+    edges = polytree.edges
+    latent_nodes = [n for n in nodes if n.startswith("h")]
+
+    if not latent_nodes:
+        return polytree
+
+    # Get topological order
+    topo_order = topo_sort(nodes, edges)
+    latent_in_topo = [n for n in topo_order if n.startswith("h")]
+
+    # Create mapping: old latent name -> new enumerated name
+    latent_mapping = {old: f"h{i + 1}" for i, old in enumerate(latent_in_topo)}
+
+    # Rebuild polytree with renamed latent nodes
+    new_polytree = PolyDAG()
+    for parent, child in edges:
+        new_parent = latent_mapping.get(parent, parent)
+        new_child = latent_mapping.get(child, child)
+        new_polytree.add_edge(new_parent, new_child)
+
+    return new_polytree
+
+
 class PolyDAG:
     def __init__(self) -> None:
         self.children: Dict[str, Set[str]] = {}
@@ -319,4 +372,5 @@ def get_polytree_algo3(gamma: np.ndarray) -> PolyDAG:
         T = tree(gamma[np.ix_(sub, sub)], _nodes=sub)
         for parent, child in T.edges:
             polytree.add_edge(parent, child)
+    polytree = rename_latent_nodes_by_topology(polytree)
     return polytree

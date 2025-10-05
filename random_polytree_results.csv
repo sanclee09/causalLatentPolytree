@@ -1,0 +1,2 @@
+polytree_size,n_samples,n_latent_mean,n_latent_std,n_observed_mean,n_observed_std,discrepancy_error_mean,precision_mean,recall_mean,f1_mean,perfect_recovery_rate
+5,10000000,1.0,0.0,4.0,0.0,3.086361938875531,0.9400000000000001,0.95,0.9444444444444444,0.9

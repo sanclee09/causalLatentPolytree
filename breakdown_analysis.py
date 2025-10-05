@@ -200,7 +200,7 @@ if __name__ == "__main__":
     print("Starting breakdown point analysis...")
 
     # Test smaller range first to see the pattern
-    n_values = [500]
+    n_values = [300]
 
     results = breakdown_analysis(
         n_values=n_values,
