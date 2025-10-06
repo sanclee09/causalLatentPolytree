@@ -1,10 +1,10 @@
 from __future__ import annotations
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from random_polytrees_pruefer import generate_random_latent_polytree
+from random_polytrees_pruefer import get_random_polytree_via_pruefer
 from polytree_discrepancy import (
     generate_noise_samples,
     apply_lsem_transformation,
@@ -14,6 +14,25 @@ from latent_polytree_truepoly import get_polytree_algo3
 from learn_with_hidden import observed_gamma_from_params
 
 from collections import defaultdict, deque
+
+
+def print_discrepancy_comparison(Gamma_pop, Gamma_finite, observed_nodes, label=""):
+    """Print side-by-side comparison of population and finite-sample discrepancy matrices."""
+    print(f"\n  {label}DISCREPANCY MATRIX DIAGNOSTICS")
+    print(f"  Observed nodes: {observed_nodes}")
+    print(f"\n  Population Γ_obs:")
+    for i, row in enumerate(Gamma_pop):
+        print(f"    {observed_nodes[i]}: " + " ".join(f"{val:8.4f}" for val in row))
+
+    print(f"\n  Finite-sample Γ_obs:")
+    for i, row in enumerate(Gamma_finite):
+        print(f"    {observed_nodes[i]}: " + " ".join(f"{val:8.4f}" for val in row))
+
+    print(f"\n  Difference (|Finite - Population|):")
+    diff = np.abs(Gamma_finite - Gamma_pop)
+    for i, row in enumerate(diff):
+        print(f"    {observed_nodes[i]}: " + " ".join(f"{val:8.4f}" for val in row))
+    print(f"  Max difference: {np.max(diff):.6f}\n")
 
 
 def _suppress_degree2_latents(edges: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
@@ -113,10 +132,6 @@ def _relabel_latents_by_topo(edges: list[tuple[str, str]]):
 def run_finite_sample_for_random_polytree(
     n_nodes: int, sample_sizes: List[int], n_trials: int = 3, seed: int = 42
 ) -> Dict[str, Any]:
-    """
-    Finite-sample evaluation for random polytrees with FULL structure comparison.
-    Each trial uses a DIFFERENT random polytree structure.
-    """
     print(f"\n{'=' * 60}")
     print(f"FINITE-SAMPLE EVALUATION: RANDOM POLYTREE (n={n_nodes})")
     print(f"{'=' * 60}")
@@ -129,14 +144,14 @@ def run_finite_sample_for_random_polytree(
         sample_results = {
             "n_nodes": n_nodes,
             "n_samples": n_samples,
-            "trials": [],  # Store each trial's complete info
+            "trials": [],
         }
 
         for trial in range(n_trials):
             print(f"\n  === Trial {trial + 1}/{n_trials} ===")
 
-            # Generate a NEW random polytree for each trial
-            ground_truth = generate_random_latent_polytree(
+            # Generate using get_random_polytree_via_pruefer
+            ground_truth = get_random_polytree_via_pruefer(
                 n=n_nodes,
                 seed=seed + trial + n_samples,
                 weights_range=(-1.0, 1.0),
@@ -144,10 +159,27 @@ def run_finite_sample_for_random_polytree(
                 ensure_at_least_one_hidden=True,
             )
 
-            edges_dict = ground_truth["edges"]
-            all_nodes = ground_truth["all_nodes"]
+            # Extract and rename
+            edges_dict = ground_truth["weights"]
+            hidden_nodes_set = set(ground_truth["hidden_nodes"])
             observed_nodes = ground_truth["observed_nodes"]
-            latent_nodes = ground_truth["latent_nodes"]
+
+            # Sort and rename latent nodes
+            latent_nodes_old = sorted(hidden_nodes_set, key=lambda x: int(x[1:]))
+            node_mapping = {
+                node: f"h{i + 1}" for i, node in enumerate(latent_nodes_old)
+            }
+
+            # Rebuild edges with renamed latent nodes
+            renamed_edges_dict = {}
+            for (u, v), weight in edges_dict.items():
+                u_new = node_mapping.get(u, u)
+                v_new = node_mapping.get(v, v)
+                renamed_edges_dict[(u_new, v_new)] = weight
+
+            edges_dict = renamed_edges_dict
+            latent_nodes = [node_mapping[node] for node in latent_nodes_old]
+            all_nodes = latent_nodes + observed_nodes
 
             print(
                 f"  Ground truth: {len(latent_nodes)} latent, {len(observed_nodes)} observed, {len(edges_dict)} edges"
@@ -155,7 +187,7 @@ def run_finite_sample_for_random_polytree(
             print(f"    Latent: {latent_nodes}")
             print(f"    Edges: {sorted(edges_dict.keys())}")
 
-            # Fixed gamma parameters
+            # Rest of the code continues as before...
             gamma_shapes = {node: 2.5 for node in all_nodes}
             gamma_scales = {node: 1.0 for node in all_nodes}
 
@@ -277,6 +309,13 @@ def run_finite_sample_for_random_polytree(
                 )
 
                 if not perfect:
+                    print_discrepancy_comparison(
+                        Gamma_population_obs,
+                        Gamma_finite_obs,
+                        observed_nodes,
+                        label="*** IMPERFECT RECOVERY *** ",
+                    )
+
                     missing = sorted(true_set - pred_set)
                     extra = sorted(pred_set - true_set)
                     if missing:
@@ -497,8 +536,8 @@ def main():
     print("=" * 70)
 
     # Configuration
-    polytree_sizes = [5]
-    sample_sizes = [10000000]
+    polytree_sizes = [4, 5, 6]
+    sample_sizes = [15000000, 20000000]
     n_trials = 10
     base_seed = 42
 
