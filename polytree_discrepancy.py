@@ -446,26 +446,52 @@ def generate_noise_samples(
     gamma_shapes: Dict[str, float],
     gamma_scales: Dict[str, float],
     n_samples: int,
-    seed: int,
-    verbose: bool = True,  # ADD THIS
+    seed: int = 42,
+    verbose: bool = True,
 ) -> Dict[str, np.ndarray]:
-    """Generate centered Gamma noise using analytic mean (shape*scale)."""
-    np.random.seed(seed)
-    noise_samples: Dict[str, np.ndarray] = {}
+    """
+    Generate centered noise samples from Gamma distributions.
 
-    if verbose:  # ADD THIS
-        print("STEP 1: Centered gamma noise generation")
-        print("-" * 40)
+    Args:
+        nodes: List of node names
+        gamma_shapes: Shape parameter k for each node (Gamma(k, θ))
+        gamma_scales: Scale parameter θ for each node
+        n_samples: Number of samples to generate
+        seed: Random seed
+        verbose: Whether to print progress
+
+    Returns:
+        Dictionary mapping node names to centered noise arrays
+    """
+    if verbose:
+        print(f"\nSTEP 1: Generating {n_samples:,} centered Gamma noise samples")
+        print("-" * 60)
+
+    np.random.seed(seed)
+    noise_samples = {}
+
     for node in nodes:
-        shape, scale = gamma_shapes[node], gamma_scales[node]
-        epsilon = np.random.gamma(shape=shape, scale=scale, size=n_samples)
-        epsilon -= shape * scale  # analytic centering
-        noise_samples[node] = epsilon
-        if verbose:  # ADD THIS
+        k = gamma_shapes[node]
+        theta = gamma_scales[node]
+
+        # Generate raw Gamma samples
+        raw_samples = np.random.gamma(shape=k, scale=theta, size=n_samples)
+
+        # Center by subtracting population mean E[Gamma(k,θ)] = k*θ
+        mean = k * theta
+        centered = raw_samples - mean
+
+        noise_samples[node] = centered
+
+        if verbose:
+            empirical_mean = np.mean(centered)
+            empirical_var = np.var(centered, ddof=0)
+            pop_var = k * theta**2
             print(
-                f"{node}: Gamma({shape:.1f}, {scale:.1f}) centered → "
-                f"mean={np.mean(epsilon):.4f}, std={np.std(epsilon):.3f}"
+                f"  {node}: k={k:.2f}, θ={theta:.2f}, "
+                f"mean={empirical_mean:.6f}, var={empirical_var:.2f} (pop: {pop_var:.2f})"
             )
+
     return noise_samples
 
 
@@ -473,36 +499,90 @@ def apply_lsem_transformation(
     noise_samples: Dict[str, np.ndarray],
     edges: Dict[Tuple[str, str], float],
     nodes: List[str],
-    verbose: bool = True,  # ADD THIS
+    verbose: bool = True,
 ) -> Dict[str, np.ndarray]:
-    """X = (I - Λ)^(-1) ε with Λ[j,i] = weight for i→j."""
-    if verbose:  # ADD THIS
-        print(f"\nSTEP 2: LSEM with strong consistent weights")
-        print("-" * 45)
-    n = len(nodes)
-    idx = {v: i for i, v in enumerate(nodes)}
+    """
+    Apply Linear Structural Equation Model transformation: X = (I - Λ)^(-1) ε
 
-    Lambda = np.zeros((n, n))
-    for (parent, child), w in edges.items():
-        Lambda[idx[child], idx[parent]] = w
+    Args:
+        noise_samples: Centered noise for each node
+        edges: Edge weights {(parent, child): weight}
+        nodes: Topologically ordered node names
+        verbose: Whether to print progress
 
-    if verbose:  # ADD THIS
-        print("Lambda matrix:")
-        print(pd.DataFrame(Lambda, index=nodes, columns=nodes))
+    Returns:
+        Dictionary mapping node names to observed variable samples
+    """
+    if verbose:
+        print(f"\nSTEP 2: LSEM transformation X = (I - Λ)^(-1) ε")
+        print("-" * 60)
 
-    alpha = np.linalg.inv(np.eye(n) - Lambda)
-    if verbose:  # ADD THIS
-        print(f"\nAlpha matrix condition number: {np.linalg.cond(alpha):.2f}")
+    n_samples = len(next(iter(noise_samples.values())))
+    p = len(nodes)
 
-    epsilon_matrix = np.column_stack([noise_samples[v] for v in nodes])
-    X_matrix = epsilon_matrix @ alpha.T
+    # Build coefficient matrix Λ
+    Lambda = np.zeros((p, p))
+    node_to_idx = {node: i for i, node in enumerate(nodes)}
 
-    X_samples = {nodes[i]: X_matrix[:, i] for i in range(n)}
-    if verbose:  # ADD THIS
-        print("✓ LSEM transformation completed")
-        print(f"X sample means: {[f'{np.mean(X_samples[v]):.3f}' for v in nodes]}")
-        print(f"X sample stds:  {[f'{np.std(X_samples[v]):.3f}' for v in nodes]}")
+    for (parent, child), weight in edges.items():
+        i = node_to_idx[parent]
+        j = node_to_idx[child]
+        Lambda[j, i] = weight  # Λ_ji = λ_ij for edge i→j
+
+    # Compute (I - Λ)^(-1)
+    I_minus_Lambda = np.eye(p) - Lambda
+    inv_matrix = np.linalg.inv(I_minus_Lambda)
+
+    # Stack noise into matrix: each column is a sample
+    epsilon_matrix = np.column_stack([noise_samples[node] for node in nodes])
+
+    # Transform: X = (I - Λ)^(-1) @ ε
+    X_matrix = epsilon_matrix @ inv_matrix.T
+
+    # Convert back to dictionary
+    X_samples = {nodes[i]: X_matrix[:, i] for i in range(p)}
+
+    if verbose:
+        print(f"  Transformed {n_samples:,} samples for {p} nodes")
+        print(f"  Edge structure: {len(edges)} edges")
+
     return X_samples
+
+
+def compute_gamma_parameters_from_moments(
+    sigmas: Dict[str, float], kappas: Dict[str, float]
+) -> Tuple[Dict[str, float], Dict[str, float]]:
+    """
+    Convert (σ, κ³) moments to Gamma(k, θ) parameters.
+
+    For Gamma(k, θ): σ² = kθ² and κ³ = 2kθ³
+    Solving: θ = |κ³|/(2σ²) and k = σ²/θ²
+
+    Args:
+        sigmas: Standard deviations {node: σ}
+        kappas: Third cumulants {node: κ³}
+
+    Returns:
+        (gamma_shapes, gamma_scales) dictionaries
+    """
+    gamma_shapes = {}
+    gamma_scales = {}
+
+    for node in sigmas:
+        sigma = sigmas[node]
+        kappa = kappas[node]
+
+        # Handle near-zero kappa (shouldn't happen with proper non-Gaussian noise)
+        if abs(kappa) < 1e-10:
+            raise ValueError(f"Node {node} has near-zero third cumulant: {kappa}")
+
+        theta = abs(kappa) / (2 * sigma**2)
+        k = (sigma**2) / (theta**2)
+
+        gamma_shapes[node] = k
+        gamma_scales[node] = theta
+
+    return gamma_shapes, gamma_scales
 
 
 def finite_sample_discrepancy(
