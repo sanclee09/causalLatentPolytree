@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -131,7 +131,11 @@ def _relabel_latents_by_topo(edges: list[tuple[str, str]]):
 
 
 def run_finite_sample_for_random_polytree(
-    n_nodes: int, sample_sizes: List[int], n_trials: int = 3, seed: int = 42
+    n_nodes: int,
+    sample_sizes: List[int],
+    n_trials: int = 3,
+    seed: int = 42,
+    n_latent: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Evaluate finite-sample recovery performance on random polytrees.
@@ -142,6 +146,7 @@ def run_finite_sample_for_random_polytree(
         sample_sizes: List of sample sizes to test
         n_trials: Number of polytrees to generate
         seed: Base random seed
+        n_latent: Number of latent nodes (None = all candidates)
 
     Returns:
         Dictionary with aggregated results and trial details
@@ -165,6 +170,7 @@ def run_finite_sample_for_random_polytree(
             weights_range=(-1.0, 1.0),
             avoid_small=0.8,
             ensure_at_least_one_hidden=True,
+            n_latent=n_latent,
         )
 
         # Extract and rename (once per trial)
@@ -781,15 +787,17 @@ def main():
     print("=" * 70)
 
     # Configuration
-    polytree_sizes = [4, 5, 6]
-    sample_sizes = [15000000, 20000000]
+    polytree_sizes = [4, 5, 6, 7, 8]
+    sample_sizes = [15000000]
     n_trials = 10
     base_seed = 42
+    n_latent = 1
 
     print(f"Configuration:")
     print(f"  Polytree sizes: {polytree_sizes}")
     print(f"  Sample sizes: {sample_sizes}")
     print(f"  Trials per configuration: {n_trials}")
+    print(f"  Number of latent nodes: {n_latent}")
 
     all_results = {}
 
@@ -799,6 +807,7 @@ def main():
             sample_sizes=sample_sizes,
             n_trials=n_trials,
             seed=base_seed + n_nodes,
+            n_latent=n_latent,
         )
         all_results[n_nodes] = results
 

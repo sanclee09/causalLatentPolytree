@@ -282,12 +282,105 @@ def is_minimal_latent_polytree_check(edges_labeled, hidden_nodes):
     return True
 
 
+def compute_max_latent_nodes(n_total: int) -> int:
+    """
+    Compute theoretical maximum number of latent nodes for a minimal latent polytree.
+
+    In a tree with n nodes:
+    - Each latent node needs out-degree >= 2
+    - This limits the maximum number of latent nodes to roughly n/2
+
+    Returns:
+        Maximum number of latent nodes possible
+    """
+    if n_total <= 2:
+        return 0  # Can't have latent nodes with out-degree >= 2
+
+    # Conservative upper bound: floor((n-1)/2)
+    # This ensures we have enough nodes to be children
+    return (n_total - 1) // 2
+
+
+def validate_latent_node_request(n_total: int, n_latent: int) -> None:
+    """
+    Validate that the requested number of latent nodes is feasible.
+
+    Args:
+        n_total: Total number of nodes
+        n_latent: Requested number of latent nodes
+
+    Raises:
+        ValueError: If n_latent exceeds theoretical maximum
+    """
+    max_latent = compute_max_latent_nodes(n_total)
+
+    if n_latent > max_latent:
+        raise ValueError(
+            f"Requested {n_latent} latent nodes for tree with {n_total} total nodes. "
+            f"Theoretical maximum for minimal latent polytree is ~{max_latent}. "
+            f"Each latent node requires out-degree >= 2, limiting the maximum."
+        )
+
+
+def get_candidate_latent_nodes(edges_dir: List[Tuple[int, int]]) -> Set[int]:
+    """
+    Return nodes that CAN be latent (out-degree >= 2).
+    This is the necessary condition from Etesami's paper.
+    Not all of these need to be latent, but latent nodes must come from this set.
+    """
+    od = outdeg_map(edges_dir)
+    return {u for u, d in od.items() if d >= 2}
+
+
+def select_latent_nodes(
+    edges_dir: List[Tuple[int, int]],
+    n_latent: Optional[int],
+    rng: random.Random,
+    n_total: int,  # NEW: total nodes for validation
+) -> Set[str]:
+    """
+    Select which nodes should be latent.
+
+    Args:
+        edges_dir: Directed edges as integer pairs
+        n_latent: Number of latent nodes to select. If None, use all candidates.
+        rng: Random number generator
+        n_total: Total number of nodes (for validation)
+
+    Returns:
+        Set of latent node labels (e.g., {'v1', 'v3'})
+    """
+    # Validate theoretical upper bound
+    if n_latent is not None:
+        validate_latent_node_request(n_total, n_latent)
+
+    candidates = get_candidate_latent_nodes(edges_dir)
+
+    if not candidates:
+        return set()
+
+    if n_latent is None:
+        # Default: all candidates become latent
+        return {f"v{u}" for u in candidates}
+
+    if n_latent > len(candidates):
+        raise ValueError(
+            f"Requested {n_latent} latent nodes but only {len(candidates)} "
+            f"candidates with out-degree >= 2 available"
+        )
+
+    # Randomly select n_latent nodes from candidates
+    selected = rng.sample(sorted(candidates), n_latent)
+    return {f"v{u}" for u in selected}
+
+
 def get_random_polytree_via_pruefer(
     n: int,
     seed: Optional[int] = None,
     weights_range: Tuple[float, float] = (-1.0, 1.0),
     avoid_small: float = 0.8,
     ensure_at_least_one_hidden: bool = True,
+    n_latent: Optional[int] = None,  # NEW parameter
 ):
     """
     Pipeline:
@@ -295,10 +388,20 @@ def get_random_polytree_via_pruefer(
       - orient via BFS from a (possibly constrained) root to ensure in-degree <= 1
       - assign random weights
       - set unit sigmas/kappas
-      - choose hidden nodes per rule (default: any node with out-degree >= 2)
+      - choose hidden nodes: if n_latent is specified, randomly select n_latent
+        nodes from those with out-degree >= 2; otherwise use all such nodes
       - VERIFY minimality: reject if any latent node is redundant
       - compute Γ_full and then Γ_obs by removing hidden nodes
       - run learner on Γ_obs
+
+    Args:
+        n: Total number of nodes
+        seed: Random seed
+        weights_range: Range for edge weights
+        avoid_small: Minimum absolute edge weight
+        ensure_at_least_one_hidden: If True, retry until at least one latent node
+        n_latent: Number of latent nodes to select. If None, all nodes with
+                  out-degree >= 2 become latent (default behavior)
 
     Returns:
       dict with keys:
@@ -329,13 +432,19 @@ def get_random_polytree_via_pruefer(
         nodes = sorted({x for e in directed for x in e})
         sigmas, kappas = sample_sigmas_kappas(nodes, rng, family="gamma")
 
-        # hidden per rule
-        hidden = branching_hidden_nodes(directed)
-
-        if (not ensure_at_least_one_hidden) or not hidden:
+        # Select latent nodes (with validation)
+        try:
+            hidden = select_latent_nodes(directed, n_latent, rng, n)  # Pass n
+        except ValueError as e:
+            if "theoretical maximum" in str(e):
+                raise  # Re-raise validation errors immediately
+            # Not enough candidates in this specific tree, retry
             continue
 
-        # NEW: Check minimality
+        if ensure_at_least_one_hidden and not hidden:
+            continue
+
+        # Check minimality
         edges_labeled = [(f"v{u}", f"v{v}") for u, v in directed]
         if not is_minimal_latent_polytree_check(edges_labeled, hidden):
             continue  # Reject non-minimal, keep trying
@@ -374,9 +483,17 @@ def get_random_polytree_via_pruefer(
 
 
 if __name__ == "__main__":
-    # Tiny smoke test
-    out = get_random_polytree_via_pruefer(n=7, seed=123)
+    # Test 1: Default behavior (all candidates become latent)
+    print("=== Test 1: Default behavior ===")
+    out = get_random_polytree_via_pruefer(n=10, seed=1234)
     print("Directed edges:", out["edges_directed"])
     print("Hidden nodes:", out["hidden_nodes"])
     print("Observed nodes:", out["observed_nodes"])
-    print("Recovered edges:", sorted(out["recovered_edges"]))
+
+    # Test 2: Specify exact number of latent nodes
+    print("\n=== Test 2: Exactly 2 latent nodes ===")
+    out2 = get_random_polytree_via_pruefer(n=10, seed=456, n_latent=2)
+    print("Directed edges:", out2["edges_directed"])
+    print("Hidden nodes:", out2["hidden_nodes"])
+    print("Observed nodes:", out2["observed_nodes"])
+    print("Number of latent nodes:", len(out2["hidden_nodes"]))
