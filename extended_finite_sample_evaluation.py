@@ -788,7 +788,7 @@ def main():
 
     # Configuration
     polytree_sizes = [4, 5, 6, 7, 8]
-    sample_sizes = [15000000]
+    sample_sizes = [10000000, 15000000, 20000000]
     n_trials = 10
     base_seed = 42
     n_latent = 1
