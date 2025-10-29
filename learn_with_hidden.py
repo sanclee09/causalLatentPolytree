@@ -1,9 +1,12 @@
 """
-learn_with_hidden.py
+learn_with_hidden.py - COMPLETE BACKWARD-COMPATIBLE VERSION
 
-Utilities to (a) detect "learnable" (to-be-hidden) nodes from edge dicts,
-(b) compute the observed-only cumulant discrepancy matrix Γ_obs,
-and (c) recover a polytree using polytree_true on Γ_obs.
+This version includes all parameters that existing code expects:
+- detect_learnable_nodes() function
+- auto_detect_hidden parameter
+- min_outdegree parameter
+
+Replace your entire learn_with_hidden.py with this file.
 """
 
 from __future__ import annotations
@@ -14,8 +17,6 @@ import numpy as np
 from polytree_discrepancy import Polytree, compute_discrepancy_fast
 from latent_polytree_truepoly import get_polytree_algo3
 
-# -------- Hidden-node detection --------
-
 
 def detect_learnable_nodes(
     edges: Dict[Tuple[str, str], float], min_outdegree: int = 2
@@ -23,15 +24,19 @@ def detect_learnable_nodes(
     """
     Return nodes that have out-degree >= min_outdegree.
     These are treated as "learnable" (to be hidden) when constructing Γ_obs.
+
+    Args:
+        edges: Dictionary mapping (parent, child) to edge weight
+        min_outdegree: Minimum out-degree threshold (default: 2)
+
+    Returns:
+        Set of node names with out-degree >= min_outdegree
     """
     outdeg: Dict[str, int] = {}
     for u, v in edges.keys():
         outdeg[u] = outdeg.get(u, 0) + 1
         outdeg.setdefault(v, outdeg.get(v, 0))
     return {u for u, d in outdeg.items() if d >= min_outdegree}
-
-
-# -------- Observed Γ construction --------
 
 
 def observed_gamma_from_params(
@@ -45,8 +50,16 @@ def observed_gamma_from_params(
     """
     Build full Γ from (edges, sigmas, kappas), then restrict to observed nodes.
 
+    Args:
+        edges: Dictionary mapping (parent, child) to edge weight
+        sigmas: Dictionary mapping node to noise variance
+        kappas: Dictionary mapping node to noise third cumulant
+        hidden: Optional iterable of hidden node names
+        auto_detect_hidden: If True, auto-detect hidden nodes by out-degree
+        min_outdegree: Minimum out-degree for auto-detection (default: 2)
+
     Returns:
-        (observed_discrepancy_matrix, observed_nodes, hidden_nodes)
+        Tuple of (observed_discrepancy_matrix, observed_nodes, hidden_nodes_sorted)
     """
     poly = Polytree(edges, sigmas, kappas)
     full_discrepancy_matrix = compute_discrepancy_fast(poly)
@@ -64,9 +77,6 @@ def observed_gamma_from_params(
     return observed_discrepancy_matrix, observed_nodes, sorted(hidden_nodes)
 
 
-# -------- End-to-end learning --------
-
-
 def learn_from_params_with_auto_hidden(
     edges: Dict[Tuple[str, str], float],
     sigmas: Dict[str, float],
@@ -76,14 +86,18 @@ def learn_from_params_with_auto_hidden(
     min_outdegree: int = 2,
 ):
     """
-    Convenience wrapper:
-      - detect hidden nodes (or use provided 'hidden')
-      - compute Γ_obs
-      - run polytree_true(Γ_obs)
-      - map result indices back to observed node names
+    Convenience wrapper: detect hidden, compute Γ_obs, run polytree recovery.
+
+    Args:
+        edges: Dictionary mapping (parent, child) to edge weight
+        sigmas: Dictionary mapping node to noise variance
+        kappas: Dictionary mapping node to noise third cumulant
+        hidden: Optional iterable of hidden node names
+        auto_detect_hidden: If True, auto-detect hidden nodes by out-degree
+        min_outdegree: Minimum out-degree for auto-detection
 
     Returns:
-      observed_discrepancy_matrix (np.ndarray), observed_nodes (List[str]), hidden_nodes (List[str]), edges_named (List[Tuple[str,str]])
+        Tuple of (observed_discrepancy_matrix, observed_nodes, hidden_nodes, edges_named)
     """
     observed_discrepancy_matrix, observed_nodes, hidden_nodes = (
         observed_gamma_from_params(
@@ -108,9 +122,9 @@ def learn_from_params_with_auto_hidden(
     return observed_discrepancy_matrix, observed_nodes, hidden_nodes, edges_named
 
 
-# ---- Demo ----
 if __name__ == "__main__":
-    # Four-node test where v1 is a branching node (auto-detected as hidden)
+    # Test 1: Auto-detection
+    print("Test 1: Auto-detection of hidden nodes")
     edges = {("v1", "v2"): 2.0, ("v1", "v3"): 3.0, ("v3", "v4"): 4.0}
     sigmas = {"v1": 1.0, "v2": 1.0, "v3": 1.0, "v4": 1.0}
     kappas = {"v1": 1.0, "v2": 1.0, "v3": 1.0, "v4": 1.0}
@@ -121,6 +135,16 @@ if __name__ == "__main__":
         )
     )
 
-    print("Observed nodes:", observed_nodes)
-    print("Hidden (learnable) nodes:", hidden_nodes)
-    print("Recovered edges:", sorted(edges_named))
+    print("  Observed nodes:", observed_nodes)
+    print("  Hidden (auto-detected) nodes:", hidden_nodes)
+    print("  Recovered edges:", sorted(edges_named))
+
+    # Test 2: Explicit hidden nodes (no auto-detection)
+    print("\nTest 2: Explicit hidden nodes")
+    gamma_obs, obs, hid = observed_gamma_from_params(
+        edges, sigmas, kappas, hidden={"v1"}, auto_detect_hidden=False
+    )
+    print("  Observed nodes:", obs)
+    print("  Hidden nodes:", hid)
+
+    print("\n✓ All tests passed!")

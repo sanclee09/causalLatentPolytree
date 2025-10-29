@@ -1,0 +1,23 @@
+{
+  "10": {
+    "f1": 1.0,
+    "f1_std": 0.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "n_latent": 2.05
+  },
+  "20": {
+    "f1": 1.0,
+    "f1_std": 0.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "n_latent": 3.7
+  },
+  "30": {
+    "f1": 1.0,
+    "f1_std": 0.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "n_latent": 5.55
+  }
+}
