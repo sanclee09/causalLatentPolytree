@@ -77,11 +77,7 @@
 \maketitle
 
 \begin{abstract}
-  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  % TODO: Write a concise abstract (\approx 200 words) summarising
-  % the research question, methodology, and expected contributions.
-  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  This thesis studies linear, non--Gaussian, acyclic models (LiNGAM) whose underlying directed graph is a \emph{minimal latent polytree}.  Building on the moment identities of \citet{shimizu:hoyer:2006} and \citet{tramontano:monod:drton:2022}, we propose a novel discrepancy matrix based on second and third cumulants of the observed variables.  When plugged into the axiomatic framework of \citet{etesami:kiyavash:coleman:2016}, the new discrepancy enables provably consistent recovery of both observed and latent portions of the polytree.  We outline theoretical guarantees and an empirical evaluation on synthetic data sets.
+This thesis studies linear, non-Gaussian, acyclic models (LiNGAM) whose underlying directed graph is a \emph{minimal latent polytree}. Building on moment identities from the LiNGAM literature, we propose a novel discrepancy matrix based on second and third cumulants of the observed variables. We adapt the algorithm proposed by Etesami et al. to the LiNGAM setting, enabling provably consistent recovery of both observed and latent portions of the polytree. We outline theoretical guarantees and provide an empirical evaluation on synthetic data sets.
 \end{abstract}
 
 \tableofcontents
@@ -92,21 +88,19 @@
 
 Understanding causality—the fundamental question of which events or variables influence others—has been central to scientific inquiry across disciplines for centuries. From the experimental sciences that seek to establish cause-and-effect relationships through controlled interventions, to the social sciences that must often rely on observational data to infer causal mechanisms, the challenge of distinguishing genuine causal relationships from mere statistical associations remains one of the most important methodological problems in empirical research.
 
-The modern mathematical framework for causal inference has its roots in the pioneering work of \citet{pearl:causality:2009}, who formalized the distinction between statistical dependence and causal relationships through the lens of directed acyclic graphs (DAGs) and structural equation models. This framework recognizes that while correlation patterns can suggest possible causal structures, additional assumptions—whether experimental, distributional, or structural—are necessary to identify the direction and magnitude of causal effects from observational data alone.
+A modern framework for causal inference has its roots in the pioneering work of \citet{pearl:causality:2009}, who formalized the distinction between statistical dependence and causal relationships through the lens of directed acyclic graphs (DAGs) and structural equation models. This framework recognizes that while correlation patterns can suggest possible causal structures, additional assumptions—whether experimental, distributional, or structural—are necessary to identify the direction and magnitude of causal effects from observational data alone.
 
 In parallel, the field of graphical modeling has developed sophisticated methods for representing and learning dependency structures among random variables \citep{laurizen:graphical:1996, Edwards:intro:2000}. These approaches excel at capturing the conditional independence relationships that characterize the joint distribution of multivariate data, but they generally cannot distinguish between statistically equivalent models that encode different causal assumptions. This limitation, known as the Markov equivalence problem, represents a fundamental challenge for causal discovery from observational data.
 
 Causal discovery from observational data emerges at the intersection of these two research traditions. The central challenge is to design methods that can recover not merely the statistical dependency structure, but the underlying causal mechanisms that generated the observed data. This requires exploiting additional constraints beyond those captured by conditional independence relationships—constraints that can break the symmetries inherent in purely associational models and reveal the directional nature of causal influences.
 
-The \emph{Linear Non--Gaussian Acyclic Model} (LiNGAM) \citep{shimizu:hoyer:2006} represents a breakthrough in this endeavor, demonstrating that non--Gaussianity of disturbances suffices to orient edges in a directed acyclic graph that is fully observed. By departing from the Gaussian assumption that underlies many classical approaches, LiNGAM methods can achieve full causal identifiability from observational data alone, without requiring experimental interventions or temporal information. This result has profound implications for causal discovery in domains where controlled experiments are impractical or impossible.
+The \emph{Linear Non-Gaussian Acyclic Model} (LiNGAM) \citep{shimizu:hoyer:2006} represents a breakthrough in this endeavor, demonstrating that non-Gaussianity of disturbances suffices to orient edges in a directed acyclic graph that is fully observed. By departing from the Gaussian assumption that underlies many classical approaches, LiNGAM methods can achieve full causal identifiability from observational data alone, without requiring experimental interventions or temporal information. This result has profound implications for causal discovery in domains where controlled experiments are impractical or impossible, such as economics, where randomized interventions on national policy variables are infeasible, or epidemiology, where ethical constraints prohibit experimental manipulation of disease exposure.
 
 However, many practical systems contain latent variables—unobserved confounders, mediators, or common causes—whose omission can severely distort causal inferences. The presence of latent variables introduces additional challenges beyond those encountered in fully observed settings, as these hidden factors can create spurious dependencies among observed variables and mask the true causal structure. Traditional approaches to latent variable modeling often require strong parametric assumptions or prior knowledge about the number and nature of unobserved factors.
 
 This thesis investigates LiNGAMs whose causal structure forms a \emph{minimal latent polytree}, following the terminology of \citet{etesami:kiyavash:coleman:2016}. Polytree structures—directed acyclic graphs whose underlying undirected graph is a tree—represent an important middle ground between the restrictive assumptions of fully observed models and the computational intractability of general latent variable models. While polytrees impose structural constraints that may not hold in all applications, they capture many realistic scenarios while remaining amenable to efficient algorithmic solutions.
 
-The theoretical foundation for our approach builds on two complementary lines of research. The work of \citet{tramontano:monod:drton:2022} shows that certain rank conditions on matrices built from second and third cumulants characterize edge orientations in LiNGAM polytree models, yet its focus remains on fully observed graphs. Conversely, \citet{etesami:kiyavash:coleman:2016} develops a four--axiom \emph{discrepancy matrix} framework that suffices to learn a latent polytree structure, but instantiates the matrix via directed--information estimators specifically designed for time series data rather than single-time-slice observational studies.
-
-In this work we synthesize these two research directions by designing a cumulant--based discrepancy measure that satisfies the theoretical axioms while remaining applicable to cross-sectional data. Our approach leverages the moment-based identifiability results from the LiNGAM literature within the axiomatic framework for latent structure learning, creating a principled method for recovering both observed and latent portions of polytree causal models.
+The theoretical foundation for our approach builds on the axiomatic framework of \citet{etesami:kiyavash:coleman:2016}, which develops a four-axiom \emph{discrepancy matrix} framework that suffices to learn a latent polytree structure. However, their work instantiates the discrepancy matrix via directed-information estimators specifically designed for time series data rather than single-time-slice observational studies. In this work, we bridge LiNGAM identifiability results with the Etesami et al. framework by constructing a cumulant-based discrepancy measure that satisfies the required axioms while remaining applicable to cross-sectional data.
 
 \paragraph{Contributions.} The main contributions are:
 \begin{enumerate}[label=(C\arabic*)]
@@ -153,7 +147,15 @@ The joint distribution of $X$ satisfies the \emph{local Markov property} with re
 
 The \emph{Markov equivalence class} of $G$ is the set of all DAGs that encode the same conditional independence relations, i.e., for which the set of distributions satisfying the local Markov property is the same. See \citet[Chap.~1]{handbook} for further details.
 
-Two fundamental challenges arise when learning causal structure from observational data. First, multiple DAGs can be statistically indistinguishable because they encode the same set of conditional independence constraints. For instance, the two DAGs with two nodes and one edge (so, $1 \to 2$ and $1 \leftarrow 2$) are in the same Markov equivalence class, and cannot be distinguished empirically without imposing further assumptions on the model. This motivates the need for additional identifying assumptions, such as the non-Gaussianity constraints exploited in LiNGAM models.
+Two fundamental challenges arise when learning causal structure from observational data. First, multiple DAGs can be statistically indistinguishable because they encode the same set of conditional independence constraints. For instance, the two DAGs with two nodes and one edge (so, $1 \to 2$ and $1 \leftarrow 2$) are in the same Markov equivalence class, and cannot be distinguished empirically without imposing further assumptions on the model. This motivates the need for additional identifying assumptions, such as the non-Gaussianity constraints exploited in LiNGAM models. To illustrate, consider a two-node graph: under Gaussianity, the models $X_2 = \lambda X_1 + \varepsilon_2$ (causal direction $1 \to 2$) and $X_1 = \tilde{\lambda} X_2 + \tilde{\varepsilon}_1$ (direction $2 \to 1$) can be statistically indistinguishable. However, with non-Gaussian noise, third-order cumulants break this symmetry. For the direction $1 \to 2$, we have
+\[
+\frac{\Sigma_{1,2}}{\Sigma_{1,1}} = \frac{\mathcal{C}^{(3)}_{1,1,2}}{\mathcal{C}^{(3)}_{1,1,1}} = \lambda,
+\]
+while for the reverse direction $2 \to 1$, we obtain
+\[
+\frac{\Sigma_{1,2}}{\Sigma_{2,2}} = \frac{\mathcal{C}^{(3)}_{1,1,2}}{\mathcal{C}^{(3)}_{2,2,2}} = \tilde{\lambda}.
+\]
+Only one of these relationships holds for the true causal direction, enabling identifiability.
 
 Methods for causal discovery thus aim to either infer the Markov equivalence class or infer the DAG itself in a model class that renders the graph identifiable. The former approach focuses on recovering the \emph{completed partially directed acyclic graph} (CPDAG), a mixed graph that encodes the causal information common to all members of a Markov equivalence class \citep{meek:1995}. The latter scenario, which is the focus of this work, postulates that the considered models exhibit special properties that permit identification of the full graph \citep{shimizu:hoyer:2006}.
 
@@ -165,7 +167,7 @@ The \emph{skeleton} of a DAG is the undirected graph obtained by replacing each 
 \subsection{Structural Equations}
 \label{subsec:equations}
 
-A structural equation model hypothesizes that every random variable in $X$ is functionally related to its parent variables:
+A structural equation model hypothesizes that every random variable in $X$ is functionally related to its parent variables, i.e.,
 \[
 X_i = f_i(X_{\pa(i)}, \varepsilon_i), \quad i \in V,
 \]
@@ -369,27 +371,6 @@ For any two vertices $i\not=j$, let $c^{(i,j),k}_m$ denote the $k$th order cumul
 % ---------- Section 4 : matrix definition (exact Prop. 2.10) ----------
 % For i ≠ j observed and an integer K ≥ 3
 \newcommand{\cumedge}[3]{c_{#1,#2#3}}  % usage: \cumedge{e}{k}{m}
-\begin{proposition}[{\citealp[Prop.~2.10]{tramontano:monod:drton:2022}}]
-\label{prop:rank}
-Let $e:i\!\to\!j$ be an edge of a polytree $G$ and fix an integer $K\ge 3$.
-Then the matrix is of rank one
-\begin{align}
-\label{eq:matrix}
-  A^{e,K}
-  \;=\;
-  \Bigl[
-        \begin{matrix}
-          c^{e,k}_{m} \\[2pt]
-          c^{e,k}_{m-1}
-        \end{matrix}
-        \,\Bigm\vert\,
-        2\le m\le k\le K
-  \Bigr].
-\end{align}
-The first column of $A^{e,K}$ contains $\mathbb{E}[X_i^2]>0$. Moreover, for every distribution induced by non-Gaussian errors, there exists $k$ such that $\mathcal{C}^{(k)}_i\neq0$. Hence, at least one minor of $A^{e,K}$ gives us an equation that is satisfied if $i\to j$ is in $G$, and is not satisfied in general for the graph with the edge reversed. This observation will provide the foundation for our discrepancy measure, which we present in Section~\ref{sec:discrepancy}.
-\end{proposition}
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Latent--LiNGAM Polytree Model}
 \label{sec:model}
@@ -400,7 +381,18 @@ We now specialize the general LiNGAM framework to the polytree setting with late
 Let $G=(V,E)$ be a DAG whose underlying undirected graph is a tree. Partition $V=O\cup L$ into observed and latent vertices. The pair $(G,O)$ is a \emph{minimal latent polytree} if every $\ell\in L$ has out-degree at least~$2$.
 \end{definition}
 
-The minimality condition ensures that no latent variable is redundant—removing any latent variable would disconnect the observed variables or change the conditional independence structure among them. This constraint is essential for identifiability, as latent nodes with out-degree 1 cannot be distinguished from direct edges between observed variables. To see why, consider a latent variable $\ell$ with parent $X_j$ and single child $X_i$. The path $X_j \to \ell \to X_i$ induces the same conditional independence relationships among observed variables as the direct edge $X_j \to X_i$, rendering the latent node $\ell$ unidentifiable from observational data alone. This fundamental limitation motivates the minimality constraint in latent polytree models \citep[cf.][]{etesami:kiyavash:coleman:2016}.
+The minimality condition ensures that no latent variable is redundant—removing any latent variable would disconnect the observed variables or change the conditional independence structure among them. This constraint is essential for identifiability, as latent nodes with out-degree 1 cannot be distinguished from direct edges between observed variables. To see why, consider a latent variable $\ell$ with parent $X_j$ and single child $X_i$. The path $X_j \to \ell \to X_i$ induces the same conditional independence relationships among observed variables as the direct edge $X_j \to X_i$, rendering the latent node $\ell$ unidentifiable from observational data alone. Even in the LiNGAM setting with non-Gaussian noise, this equivalence persists at the level of observed variables. Specifically, the model with latent variable
+\begin{align*}
+X_j &= \varepsilon_j, \\
+\ell &= a_1 X_j + \varepsilon_\ell, \\
+X_i &= a_2 \ell + \varepsilon_i
+\end{align*}
+is observationally equivalent to the direct edge model
+\begin{align*}
+X_j &= \varepsilon_j, \\
+X_i &= a_2 a_1 X_j + (a_2 \varepsilon_\ell + \varepsilon_i),
+\end{align*}
+where the composite noise term $\tilde{\varepsilon}_i := a_2 \varepsilon_\ell + \varepsilon_i$ is non-Gaussian whenever either $\varepsilon_\ell$ or $\varepsilon_i$ is non-Gaussian. Thus, both models induce identical joint distributions over the observed variables $(X_j, X_i)$, making it impossible to detect the presence of $\ell$ from observed data. This fundamental limitation motivates restricting attention to latent structures where each latent variable has at least two children, ensuring structural identifiability. This fundamental limitation motivates the minimality constraint in latent polytree models \citep[cf.][]{etesami:kiyavash:coleman:2016}.
 
 \begin{definition}[Latent--LiNGAM polytree model]\label{def:latent_lingam_model}
 A random vector $X\in\mathbb R^{|V|}$ follows the latent--LiNGAM polytree model on $(G,O)$ if:
@@ -455,8 +447,9 @@ Note that for a given tree, the discrepancy matrix is not unique. Any function t
 \end{definition}
 
 
-\begin{definition}[Cumulant Discrepancy Measure]\label{def:discrepancy}
-Let $X = (X_1, \dots, X_p)$ be observed variables from a linear non-Gaussian model. For any $i,j \in \{1,\dots,p\}$, define the cumulant discrepancy measure $\gamma(i,j)$ as
+\begin{definition}[Cumulant Discrepancy Measure]
+\label{def:discrepancy}
+Motivated by the rank conditions in \citet[Prop.~2.10]{tramontano:monod:drton:2022}, which show that certain cumulant matrices characterize edge orientations in fully observed polytrees, we define the following discrepancy measure between observed nodes. For any pair of observed nodes $i, j \in O$, we define the cumulant discrepancy measure $\gamma(i,j)$ as
 \begin{equation}\label{eq:gamma}
 \gamma(i,j) =
 \begin{cases}
@@ -469,6 +462,10 @@ Let $X = (X_1, \dots, X_p)$ be observed variables from a linear non-Gaussian mod
 where $\Sigma$ is the covariance matrix, and $\mathcal{C}^{(3)}$ is the third-order cumulant tensor.
 
 \end{definition}
+
+\begin{remark}
+Throughout this work, we restrict our analysis to third-order cumulants ($k=3$). However, the extension to higher-order cumulants is straightforward: for any $k \geq 3$, one can replace $\mathcal{C}^{(3)}_{i,j,j}$ and $\mathcal{C}^{(3)}_{i,i,j}$ in \eqref{eq:gamma} with appropriate $k$th-order cumulants $\mathcal{C}^{(k)}$ following the same ratio structure. The choice of third-order moments provides a balance between identifiability power and estimation complexity in practice.
+\end{remark}
 
 \begin{lemma}[Wright's Formula {\citealp{wright:1960}}]
 \label{lem:wright}
@@ -1020,9 +1017,10 @@ Since latent variables can be recovered with different names, we employ a bipart
 \begin{algorithmic}[1]
     \Require True latent children $\{C_t^{\text{true}}\}$, predicted latent children $\{C_r^{\text{pred}}\}$
     \Ensure Optimal matching between latent nodes
-    \State Compute Jaccard similarities: $J(C_t, C_r) = |C_t \cap C_r| / |C_t \cup C_r|$
-    \State Solve maximum weight bipartite matching with threshold $\tau = 0.5$
-    \State Return matched pairs $(t, r)$ with $J(C_t, C_r) \geq \tau$
+    \State Compute Jaccard similarities: $J(C_t, C_r) = |C_t \cap C_r| / |C_t \cup C_r|$ for all pairs
+    \State Sort all pairs $(t, r)$ by Jaccard score in descending order
+    \State Greedily assign matches: for each pair in sorted order, if neither $t$ nor $r$ is already matched and $J(C_t, C_r) \geq 0.5$, create match $(t, r)$
+    \State Return matched pairs
 \end{algorithmic}
 \end{algorithm}
 
@@ -1178,7 +1176,7 @@ Nodes ($n$) & Edge Threshold ($\eta$) & F1-Score & Runtime (seconds) \\
 
 These results represent the largest successful latent polytree structure learning experiments reported in the literature to date. The perfect F1 scores confirm that the method maintains theoretical guarantees even at scales orders of magnitude larger than previous demonstrations.
 
-\paragraph{Runtime characteristics.} The computational complexity appears polynomial in the number of nodes, with runtime scaling approximately as $O(n^{2.3})$ based on our empirical observations. For $n = 1500$ nodes, the total runtime of approximately 63 minutes demonstrates practical feasibility for large-scale applications.
+\paragraph{Runtime characteristics.} The computational complexity is dominated by the $O(p^2 \log p)$ cost of computing the Chow-Liu tree using Kruskal's algorithm \citep{cormen:introduction}, where $p$ is the number of observed nodes. The subsequent structure learning algorithms (Separation, Tree, and Polytree) have worst-case complexity $O(p^2)$ for star-like structures, but typically exhibit better performance on balanced polytrees. Overall, the method scales polynomially with the number of nodes, making it practically feasible for large-scale applications. For $n = 1500$ nodes, the total runtime of approximately 63 minutes demonstrates practical feasibility for large-scale structure learning.
 
 \paragraph{Scale-dependent breakdown under weak thresholds.} In contrast, weak threshold conditions ($\eta = 0.1$) exhibit clear breakdown points around $n = 100-120$ nodes, where F1 scores drop below 0.5. This breakdown is characterized by:
 \begin{itemize}
@@ -1247,7 +1245,7 @@ The systematic progression from known analytical cases to random structures prov
 \begin{itemize}
 \item \textbf{Structure}: 4-node polytree with edges $\{(v_1, v_2), (v_1, v_3), (v_3, v_4)\}$ as depicted in Figure~\ref{fig:example-polytree}
 \item \textbf{Edge weights}: Strong coefficients $\lambda_{1,2} = -0.95$, $\lambda_{1,3} = -0.95$, $\lambda_{3,4} = 0.95$ (compared to $\{2, 3, 4\}$ in the theoretical example)
-\item \textbf{Node configuration}: Following the minimal latent polytree definition, $v_1$ is identified as a latent variable (out-degree = 2), while $v_2, v_3, v_4$ serve as observed variables. Only the observed discrepancy matrix is provided to the structure recovery algorithm, as required by the theoretical framework.
+\item \textbf{Node configuration}: Following the minimal latent polytree definition, we set $v_1$ as a latent variable (out-degree = 2), while $v_2, v_3, v_4$ serve as observed variables. Only the observed discrepancy matrix is provided to the structure recovery algorithm, as required by the theoretical framework.
 \end{itemize}
 
 This configuration leverages our established theoretical understanding while using edge weights that satisfy the strong threshold condition ($|\lambda_{ij}| \geq 0.8$) identified in the population experiments. The choice ensures robust numerical conditioning while maintaining the interpretable structure from our theoretical analysis.
@@ -1460,12 +1458,106 @@ The finite-sample validation establishes clear, evidence-based guidelines for pr
 \item For applications where perfect recovery is not essential, the moderate sample size range offers a reasonable compromise between computational cost and performance
 \end{itemize}
 
-\subsection{Extension to Random Polytrees: Structural Topology Framework}
+\subsection{Extension to Random Polytrees}
 \label{subsec:random_polytree_extension}
 
-Following successful validation on the known four-node example, we extend the finite-sample analysis to randomly generated polytrees using the Prüfer sequence framework. A critical insight from preliminary experimentation is that \emph{polytree topology fundamentally determines recovery difficulty}. We therefore organize our investigation around three canonical structural classes, ordered by increasing recovery difficulty.
+Following successful validation on the known four-node example, we extend the finite-sample analysis to randomly generated polytrees using the Prüfer sequence framework. This extension proceeds in two phases: first, we establish baseline performance on unstructured random polytrees without topological constraints (Section~\ref{subsubsec:unstructured_random}), providing a general characterization of algorithm performance across diverse structures. Subsequently, we investigate how specific structural topologies systematically affect recovery difficulty (Section~\ref{subsubsec:topology_framework}), revealing the fundamental determinants of finite-sample requirements.
 
-Figure~\ref{fig:topology_examples} illustrates these three canonical topologies. Within each topological class, we systematically vary the proportion of latent nodes to assess how latent configuration affects recovery performance under finite-sample conditions. This hierarchical organization—topology first (ordered by increasing difficulty), then latent proportion within topology—provides clearer insights into the fundamental determinants of recovery difficulty.
+\subsubsection{Unstructured Random Polytrees: Baseline Characterization}
+\label{subsubsec:unstructured_random}
+
+We begin with the most general experimental setting: randomly generated polytrees with minimal structural constraints. This approach mirrors the four-node validation methodology but scales to larger systems, providing baseline performance characterization across varying polytree sizes and sample sizes without imposing topological restrictions.
+
+\paragraph{Experimental methodology.}
+
+Our experimental methodology operates at two complementary levels to enable comprehensive performance analysis:
+
+\begin{enumerate}[label=(\arabic*)]
+\item \textbf{Pure finite-sample evaluation (primary approach)}: For assessing structure recovery under realistic conditions, we sample non-Gaussian noise from gamma distributions, apply the LSEM transformation to generate observed data, estimate second and third cumulants from samples, construct the finite-sample observed discrepancy matrix $\hat{\Gamma}_O$, and apply the Separation-Tree-Merger algorithm. This represents the complete pipeline a practitioner would follow, requiring no knowledge of the true population parameters beyond the non-Gaussianity assumption.
+
+\item \textbf{Population-referenced evaluation (for diagnostic analysis)}: To decompose performance and separately quantify moment estimation error versus algorithmic recovery capability, we additionally compute the population discrepancy matrix $\Gamma_O$ using the true structural parameters. This enables measurement of discrepancy error $\|\hat{\Gamma}_O - \Gamma_O\|$ and attribution of recovery failures to either (i) insufficient moment estimation precision or (ii) fundamental algorithmic limitations given the topology.
+\end{enumerate}
+
+The population-referenced approach provides crucial diagnostic information but requires knowledge of ground truth parameters. The pure finite-sample approach, by contrast, mirrors real-world application where only the non-Gaussianity assumption is available.
+
+\paragraph{Noise generation protocol.} For all experiments, we generate centered non-Gaussian noise from gamma distributions with heterogeneous parameters:
+
+\begin{enumerate}[label=(\roman*)]
+\item \textbf{Shape parameter sampling}: For each node $i$, draw shape parameter $k_i \sim \text{Uniform}[1.2, 9.0]$, ensuring sufficient non-Gaussianity while avoiding extreme tail behavior
+
+\item \textbf{Scale parameter standardization}: Set scale parameter $\theta_i = 1/\sqrt{k_i}$ to standardize variance to unity, yielding $\text{Var}(\varepsilon_i) = k_i \theta_i^2 = 1$
+
+\item \textbf{Third cumulant determination}: The standardization yields third cumulants $\kappa_i = 2k_i\theta_i^3 = 2/\sqrt{k_i}$, providing heterogeneous asymmetry across nodes with $\kappa_i \in [0.67, 1.83]$
+
+\item \textbf{Centering}: Generate raw samples from $\Gamma(k_i, \theta_i)$ and center by subtracting the population mean $\mu_i = k_i\theta_i$, ensuring zero-mean noise: $\tilde{\varepsilon}_i = \varepsilon_i - \mu_i$
+\end{enumerate}
+
+This protocol ensures that all nodes have unit variance but distinct third-order characteristics, satisfying the non-Gaussianity requirement for identifiability while maintaining numerical stability.
+
+\paragraph{Data generation and moment estimation.} The complete experimental pipeline proceeds as follows:
+
+\begin{enumerate}[label=\textbf{Step \arabic*:}]
+\item \textbf{Structural parameter generation}: Generate random minimal latent polytree with $n$ nodes using Prüfer sequences, assign edge weights $\lambda_{ij} \sim \text{Uniform}[-1,1]$ with $|\lambda_{ij}| \geq \eta$, and sample gamma noise parameters $(k_i, \theta_i)$ as described above
+
+\item \textbf{Population reference computation (optional)}: If performing population-referenced evaluation, compute the population observed discrepancy matrix $\Gamma_O$ using the true parameters $((\lambda_{ij}), (k_i, \theta_i))$ via Definition~\ref{def:discrepancy}, restricted to observed nodes
+
+\item \textbf{Efficient finite-sample data generation}: For computational efficiency and consistency across sample sizes, we employ a nested sampling strategy. Generate $n_{\max} = \max(\mathcal{S})$ centered noise samples $\tilde{\varepsilon}_i^{(t)} \sim \Gamma(k_i, \theta_i) - k_i\theta_i$ for $t = 1, \ldots, n_{\max}$, where $\mathcal{S}$ is the set of sample sizes to be evaluated. Apply the LSEM transformation $\mathbf{X}_{\max} = (I - \Lambda)^{-1}\tilde{\boldsymbol{\varepsilon}}$ to obtain the maximum sample size dataset. For each smaller sample size $n_s \in \mathcal{S}$ with $n_s < n_{\max}$, extract the first $n_s$ samples: $\mathbf{X}_{n_s} = \mathbf{X}_{\max}[1:n_s, :]$. This ensures that smaller datasets are proper subsets of larger ones, enabling consistent comparison across sample sizes while avoiding redundant data generation and ensuring that performance differences are attributable solely to sample size rather than sampling variability.
+
+\item \textbf{Moment estimation}: For each sample size $n_s \in \mathcal{S}$, compute sample covariance matrix $\hat{\Sigma} = \frac{1}{n_s}\mathbf{X}_{n_s}^\top\mathbf{X}_{n_s}$ and sample third cumulants $\hat{\mathcal{C}}^{(3)}_{i,j,k}$ from the centered data
+
+\item \textbf{Finite-sample discrepancy construction}: Construct finite-sample observed discrepancy matrix $\hat{\Gamma}_O$ using the ratio-based formula from Definition~\ref{def:discrepancy}, applied to the estimated moments, restricted to observed nodes
+
+\item \textbf{Structure recovery}: Apply the Separation-Tree-Merger algorithm to $\hat{\Gamma}_O$ to recover the polytree structure
+
+\item \textbf{Performance evaluation}: Compute structure recovery metrics (precision, recall, F1-score, perfect recovery rate). If population reference is available, additionally compute discrepancy error $\max_{i,j \in O}|\hat{\Gamma}_O(i,j) - \Gamma_O(i,j)|$
+\end{enumerate}
+
+\paragraph{Experimental configuration.} For the unstructured random polytree baseline:
+
+\begin{itemize}
+\item \textbf{Polytree sizes}: $n \in \{4, 5, 6, 7, 8, 9, 10\}$ total nodes
+\item \textbf{Latent nodes}: $k = 1$ latent node per polytree, ensuring minimal but non-trivial latent structure
+\item \textbf{Sample sizes}: $n_{\text{samples}} \in \{10^2, 10^3, 10^4, 10^5, 10^6, 10^7, 2 \times 10^7\}$ to characterize high-precision regime
+\item \textbf{Edge weight threshold}: $\eta = 0.8$ for strong numerical conditioning
+\item \textbf{Trials per configuration}: $N = 10$ independent replications for statistical reliability
+\end{itemize}
+
+This configuration provides a comprehensive baseline characterization of algorithm performance on general polytree structures before introducing topology-specific constraints.
+
+\paragraph{Rationale for nested sampling strategy.} The nested sampling approach (Step 3) provides several critical advantages:
+
+\begin{itemize}
+\item \textbf{Consistency}: By ensuring smaller datasets are subsets of larger ones, performance differences across sample sizes reflect only estimation precision, not sampling variability
+\item \textbf{Computational efficiency}: Generating data once at the maximum sample size eliminates redundant noise generation and LSEM transformations
+\item \textbf{Fair comparison}: The nested structure enables direct assessment of how additional samples improve performance on the identical underlying random polytree realization
+\end{itemize}
+
+This methodology, inherited from best practices in finite-sample convergence analysis, ensures that our empirical results provide clean characterization of sample size requirements unconfounded by trial-to-trial structural variation.
+
+\paragraph{Expected outcomes.} Based on the four-node validation results and preliminary experiments, we anticipate:
+
+\begin{itemize}
+\item High F1-scores ($> 0.9$) for small polytrees ($n \leq 6$) at sample sizes $n_{\text{samples}} \geq 10^7$
+\item Graceful degradation of performance as polytree size increases, requiring larger samples to maintain recovery quality
+\item Clear relationship between discrepancy error and structure recovery success, enabling prediction of sample requirements for specific accuracy targets
+\end{itemize}
+
+\subsubsection{Structural Topology Framework: Difficulty Stratification}
+\label{subsubsec:topology_framework}
+
+A critical insight from preliminary experimentation on unstructured random polytrees is that \emph{polytree topology fundamentally determines recovery difficulty}. Rather than treating all random polytrees as equivalent, we now investigate how specific structural patterns systematically affect finite-sample requirements. This topology-stratified analysis provides practitioners with actionable guidance for estimating data requirements based on their domain's likely causal structure.
+
+\paragraph{Topology-driven difficulty hypothesis.} Our experimental observations suggest a clear hierarchy of recovery difficulty:
+
+\begin{enumerate}[label=(\arabic*)]
+\item \textbf{Chain structures} (easiest): Linear directed paths create monotonic discrepancy orderings that remain distinguishable even under moderate finite-sample noise
+
+\item \textbf{Balanced branching structures} (intermediate): Multiple latent nodes with distributed out-degrees provide rich information but introduce ambiguity requiring more precise moment estimates
+
+\item \textbf{Star structures} (hardest): Symmetric arrangements with a single high-degree latent root create nearly indistinguishable discrepancy patterns, demanding extreme moment estimation precision
+\end{enumerate}
+
+Figure~\ref{fig:topology_examples} illustrates these three canonical topologies. Within each topological class, we systematically vary the proportion of latent nodes to assess how latent configuration affects recovery performance under finite-sample conditions.
 
 \begin{figure}[ht]
 \centering
@@ -1532,78 +1624,6 @@ Figure~\ref{fig:topology_examples} illustrates these three canonical topologies.
 \caption{Canonical polytree topologies ordered by recovery difficulty. (a) \textbf{Chain structure}: Natural extension of the four-node validation example, featuring a latent root $h_1$ with one immediate child $v_1$ and one continuing chain $v_2 \to v_3 \to v_4 \to \cdots$. Easiest to recover due to clear monotonic discrepancy patterns. (b) \textbf{Balanced branching structure}: Multiple latent nodes ($h_1$, $h_2$) with moderate out-degrees create hierarchical dependencies. Intermediate recovery difficulty. (c) \textbf{Star structure}: Single latent root with six observed children arranged radially, exhibiting symmetric discrepancy patterns. Hardest to recover due to limited discriminative information. Latent nodes are shaded gray; observed nodes are white.}
 \label{fig:topology_examples}
 \end{figure}
-
-\subsubsection{Experimental Methodology: Population Reference and Finite-Sample Evaluation}
-
-Before presenting the topology-specific experiments, we establish the dual-level experimental framework that enables comprehensive performance characterization across both algorithmic correctness and finite-sample convergence.
-
-\paragraph{Two-level evaluation framework.} Our experimental methodology operates at two complementary levels:
-
-\begin{enumerate}[label=(\arabic*)]
-\item \textbf{Pure finite-sample evaluation (primary approach)}: For assessing structure recovery under realistic conditions, we sample non-Gaussian noise from gamma distributions, apply the LSEM transformation to generate observed data, estimate second and third cumulants from samples, construct the finite-sample observed discrepancy matrix $\hat{\Gamma}_O$, and apply the Separation-Tree-Merger algorithm. This represents the complete pipeline a practitioner would follow, requiring no knowledge of the true population parameters beyond the non-Gaussianity assumption.
-
-\item \textbf{Population-referenced evaluation (for detailed analysis)}: To decompose performance and separately quantify moment estimation error versus algorithmic recovery capability, we additionally compute the population discrepancy matrix $\Gamma_O$ using the true structural parameters. This enables measurement of discrepancy error $\|\hat{\Gamma}_O - \Gamma_O\|$ and attribution of recovery failures to either (i) insufficient moment estimation precision or (ii) fundamental algorithmic limitations given the topology.
-\end{enumerate}
-
-The population-referenced approach provides crucial diagnostic information but requires knowledge of ground truth parameters. The pure finite-sample approach, by contrast, mirrors real-world application where only the non-Gaussianity assumption is available.
-
-\paragraph{Noise generation protocol.} For all experiments, we generate centered non-Gaussian noise from gamma distributions with heterogeneous parameters:
-
-\begin{enumerate}[label=(\roman*)]
-\item \textbf{Shape parameter sampling}: For each node $i$, draw shape parameter $k_i \sim \text{Uniform}[1.2, 9.0]$, ensuring sufficient non-Gaussianity while avoiding extreme tail behavior
-
-\item \textbf{Scale parameter standardization}: Set scale parameter $\theta_i = 1/\sqrt{k_i}$ to standardize variance to unity, yielding $\text{Var}(\varepsilon_i) = k_i \theta_i^2 = 1$
-
-\item \textbf{Third cumulant determination}: The standardization yields third cumulants $\kappa_i = 2k_i\theta_i^3 = 2/\sqrt{k_i}$, providing heterogeneous asymmetry across nodes with $\kappa_i \in [0.67, 1.83]$
-
-\item \textbf{Centering}: Generate raw samples from $\Gamma(k_i, \theta_i)$ and center by subtracting the population mean $\mu_i = k_i\theta_i$, ensuring zero-mean noise: $\tilde{\varepsilon}_i = \varepsilon_i - \mu_i$
-\end{enumerate}
-
-This protocol ensures that all nodes have unit variance but distinct third-order characteristics, satisfying the non-Gaussianity requirement for identifiability while maintaining numerical stability.
-
-\paragraph{Data generation and moment estimation.} The complete experimental pipeline proceeds as follows:
-
-\begin{enumerate}[label=\textbf{Step \arabic*:}]
-\item \textbf{Structural parameter generation}: Generate random minimal latent polytree with $n$ nodes using Prüfer sequences, assign edge weights $\lambda_{ij} \sim \text{Uniform}[-1,1]$ with $|\lambda_{ij}| \geq \eta$, and sample gamma noise parameters $(k_i, \theta_i)$ as described above
-
-\item \textbf{Population reference computation (optional)}: If performing population-referenced evaluation, compute the population observed discrepancy matrix $\Gamma_O$ using the true parameters $((\lambda_{ij}), (k_i, \theta_i))$ via Definition~\ref{def:discrepancy}, restricted to observed nodes
-
-\item \textbf{Finite-sample data generation}: Generate $n_{\text{samples}}$ centered noise samples $\tilde{\varepsilon}_i^{(t)} \sim \Gamma(k_i, \theta_i) - k_i\theta_i$ for $t = 1, \ldots, n_{\text{samples}}$, and apply LSEM transformation $\mathbf{X} = (I - \Lambda)^{-1}\tilde{\boldsymbol{\varepsilon}}$ to obtain observed data
-
-\item \textbf{Moment estimation}: Compute sample covariance matrix $\hat{\Sigma} = \frac{1}{n_{\text{samples}}}\mathbf{X}^\top\mathbf{X}$ and sample third cumulants $\hat{\mathcal{C}}^{(3)}_{i,j,k}$ from the centered data
-
-\item \textbf{Finite-sample discrepancy construction}: Construct finite-sample observed discrepancy matrix $\hat{\Gamma}_O$ using the ratio-based formula from Definition~\ref{def:discrepancy}, applied to the estimated moments, restricted to observed nodes
-
-\item \textbf{Structure recovery}: Apply the Separation-Tree-Merger algorithm to $\hat{\Gamma}_O$ to recover the polytree structure
-
-\item \textbf{Performance evaluation}: Compute structure recovery metrics (precision, recall, F1-score). If population reference is available, additionally compute discrepancy error $\max_{i,j \in O}|\hat{\Gamma}_O(i,j) - \Gamma_O(i,j)|$
-\end{enumerate}
-
-\paragraph{Rationale for population-referenced evaluation.} While the pure finite-sample approach suffices for assessing practical applicability, the population-referenced evaluation provides essential insights for algorithm development:
-
-\begin{itemize}
-\item \textbf{Error decomposition}: By measuring both discrepancy error (moment estimation quality) and recovery success (algorithmic performance), we can determine whether recovery failures stem from insufficient sample size or fundamental topological challenges
-
-\item \textbf{Sample size guidance}: The relationship between discrepancy error and recovery success across sample sizes informs practitioners about the precision requirements for their specific topology
-
-\item \textbf{Topology difficulty characterization}: Comparing population discrepancy patterns across topologies reveals the information-theoretic foundations of recovery difficulty, independent of estimation noise
-\end{itemize}
-
-This dual framework, inherited from the four-node validation experiments, provides comprehensive characterization of both statistical (finite-sample convergence) and algorithmic (structure recovery given perfect moments) performance.
-
-\paragraph{Parameter configuration summary.} Unless otherwise specified, all experiments use:
-
-\begin{itemize}
-\item \textbf{Edge weight threshold}: $\eta = 0.8$ for strong numerical conditioning
-\item \textbf{Gamma shape range}: $k_i \in [1.2, 9.0]$ for moderate heterogeneous non-Gaussianity
-\item \textbf{Variance standardization}: $\theta_i = 1/\sqrt{k_i}$ ensuring $\text{Var}(\varepsilon_i) = 1$
-\item \textbf{Sample size ranges}: Topology-dependent, from $10^4$ (chains) to $5 \times 10^7$ (stars)
-\item \textbf{Trials per configuration}: $N = 20$ independent replications for statistical reliability
-\end{itemize}
-
-These standardized protocols enable fair comparison across topologies while maintaining the strong edge weight thresholds identified as critical in the population-level experiments (Section~\ref{subsec:threshold_phenomenon}).
-
-
 
 \subsubsection{Chain Structures: Extension of the Four-Node Example}
 
