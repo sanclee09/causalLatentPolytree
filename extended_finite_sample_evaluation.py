@@ -201,9 +201,32 @@ def run_finite_sample_for_random_polytree(
             edges_dict, sigmas, kappas, latent_nodes
         )
 
-        # Test this SAME polytree with DIFFERENT sample sizes
-        for n_samples in sample_sizes:
+        # Generate data ONCE for the LARGEST sample size, then subset for smaller sizes
+        max_n_samples = max(sample_sizes)
+        print(f"\n  Generating data for max sample size: {max_n_samples:,}")
+        trial_seed = seed + hash((trial, max_n_samples)) % 1000000
+        noise_samples_max = generate_noise_samples(
+            all_nodes,
+            gamma_shapes,
+            gamma_scales,
+            max_n_samples,
+            trial_seed,
+            verbose=False,
+        )
+        X_samples_max = apply_lsem_transformation(
+            noise_samples_max, edges_dict, all_nodes, verbose=False
+        )
+
+        # Convert to numpy array if it's a dict (organize by nodes in order)
+        if isinstance(X_samples_max, dict):
+            X_samples_max = np.column_stack([X_samples_max[node] for node in all_nodes])
+
+        # Test this SAME polytree with DIFFERENT sample sizes by subsetting
+        for n_samples in sorted(sample_sizes, reverse=True):
             print(f"\n  --- Testing with n_samples = {n_samples:,} ---")
+
+            # Subset data for this sample size
+            X_samples_subset = X_samples_max[:n_samples, :]
 
             trial_result = _run_single_sample_size(
                 all_nodes,
@@ -216,6 +239,7 @@ def run_finite_sample_for_random_polytree(
                 n_samples,
                 seed,
                 trial,
+                X_samples_subset,  # Pass pre-generated data
             )
 
             trial_result["trial_id"] = trial + 1
@@ -246,31 +270,42 @@ def run_finite_sample_for_random_polytree(
 
 
 def _run_single_sample_size(
-    all_nodes: List[str],
-    observed_nodes: List[str],
-    edges_dict: Dict,
-    latent_nodes: List[str],
-    gamma_shapes: Dict[str, float],
-    gamma_scales: Dict[str, float],
-    Gamma_population_obs: np.ndarray,
-    n_samples: int,
-    seed: int,
-    trial: int,
+        all_nodes: List[str],
+        observed_nodes: List[str],
+        edges_dict: Dict,
+        latent_nodes: List[str],
+        gamma_shapes: Dict[str, float],
+        gamma_scales: Dict[str, float],
+        Gamma_population_obs: np.ndarray,
+        n_samples: int,
+        seed: int,
+        trial: int,
+        X_samples: Optional[np.ndarray] = None,  # Add this parameter
 ) -> Dict[str, Any]:
     """Test one polytree with one sample size."""
     try:
-        # Generate finite-sample data
-        Gamma_finite_obs = _generate_and_compute_finite_discrepancy(
-            all_nodes,
-            observed_nodes,
-            gamma_shapes,
-            gamma_scales,
-            edges_dict,
-            n_samples,
-            seed,
-            trial,
-        )
+        # Generate or use provided data
+        if X_samples is None:
+            # Generate finite-sample data (fallback for backward compatibility)
+            Gamma_finite_obs = _generate_and_compute_finite_discrepancy(
+                all_nodes,
+                observed_nodes,
+                gamma_shapes,
+                gamma_scales,
+                edges_dict,
+                n_samples,
+                seed,
+                trial,
+            )
+        else:
+            # Use pre-generated data - convert array back to dict format
+            X_samples_dict = {node: X_samples[:, i] for i, node in enumerate(all_nodes)}
 
+            Gamma_finite_full = finite_sample_discrepancy(X_samples_dict, all_nodes, verbose=False)
+            observed_indices = [all_nodes.index(node) for node in observed_nodes]
+            Gamma_finite_obs = Gamma_finite_full[np.ix_(observed_indices, observed_indices)]
+
+        # Rest remains exactly the same...
         # Compute discrepancy error
         discrepancy_error = np.max(np.abs(Gamma_finite_obs - Gamma_population_obs))
         print(f"    Discrepancy error: {discrepancy_error:.6f}")
@@ -787,8 +822,8 @@ def main():
     print("=" * 70)
 
     # Configuration
-    polytree_sizes = [4, 5, 6, 7, 8]
-    sample_sizes = [10000000, 15000000, 20000000]
+    polytree_sizes = [4, 5, 6, 7, 8, 9, 10]
+    sample_sizes = [100, 1000, 10000, 100000, 1000000, 10000000, 20000000]
     n_trials = 10
     base_seed = 42
     n_latent = 1
