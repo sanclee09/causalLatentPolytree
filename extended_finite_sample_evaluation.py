@@ -677,9 +677,10 @@ def _aggregate_trial_results(
 
 def plot_convergence_analysis(all_results: Dict[int, Dict[str, Any]]):
     """
-    Create comprehensive convergence analysis plots.
+    Generate convergence analysis plots for finite-sample evaluation.
     """
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    # Change from 2x2 to 1x3 layout (removing perfect recovery plot)
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
     colors = plt.cm.viridis(np.linspace(0, 0.9, len(all_results)))
 
@@ -693,95 +694,63 @@ def plot_convergence_analysis(all_results: Dict[int, Dict[str, Any]]):
 
         plot_sample_sizes = [r["n_samples"] for r in results]
         plot_error_means = [r["discrepancy_error_mean"] for r in results]
-        plot_error_stds = [r["discrepancy_error_std"] for r in results]
         plot_f1_means = [r["f1_mean"] for r in results]
-        plot_f1_stds = [r["f1_std"] for r in results]
-        plot_perfect_rates = [r["perfect_recovery_rate"] for r in results]
 
-        # Discrepancy error convergence
-        axes[0, 0].fill_between(
-            plot_sample_sizes,
-            np.array(plot_error_means) - np.array(plot_error_stds),
-            np.array(plot_error_means) + np.array(plot_error_stds),
-            alpha=0.3,
-            color=color,
-        )
-        axes[0, 0].loglog(
+        # Discrepancy error convergence (no shading)
+        axes[0].loglog(
             plot_sample_sizes, plot_error_means, "o-", color=color, label=label
         )
 
-        # F1 Score
-        axes[0, 1].fill_between(
-            plot_sample_sizes,
-            np.array(plot_f1_means) - np.array(plot_f1_stds),
-            np.array(plot_f1_means) + np.array(plot_f1_stds),
-            alpha=0.3,
-            color=color,
-        )
-        axes[0, 1].semilogx(
+        # F1 Score (no shading)
+        axes[1].semilogx(
             plot_sample_sizes, plot_f1_means, "o-", color=color, label=label
         )
 
-        # Perfect recovery rate
-        axes[1, 0].semilogx(
-            plot_sample_sizes, plot_perfect_rates, "o-", color=color, label=label
-        )
-
-        # Theoretical n^(-1/2) comparison
+        # Theoretical n^(-1/2) comparison (same color for theory and observed)
         if len(plot_sample_sizes) > 1:
             theoretical = plot_error_means[0] * np.sqrt(
                 plot_sample_sizes[0] / np.array(plot_sample_sizes)
             )
-            axes[1, 1].loglog(
+            # Dashed line for theory, solid for observed, same color
+            axes[2].loglog(
                 plot_sample_sizes,
                 theoretical,
                 "--",
                 color=color,
-                alpha=0.5,
-                label=f"{label} Theory",
+                alpha=0.7,
             )
-            axes[1, 1].loglog(
+            axes[2].loglog(
                 plot_sample_sizes,
                 plot_error_means,
                 "o-",
                 color=color,
-                label=f"{label} Observed",
+                label=label,
             )
 
     # Formatting
-    axes[0, 0].set_xlabel("Sample Size")
-    axes[0, 0].set_ylabel("Max Discrepancy Error")
-    axes[0, 0].set_title("Discrepancy Error Convergence")
-    axes[0, 0].legend()
-    axes[0, 0].grid(True, alpha=0.3)
+    axes[0].set_xlabel("Sample Size")
+    axes[0].set_ylabel("Max Discrepancy Error")
+    axes[0].set_title("Discrepancy Error Convergence")
+    axes[0].legend()
+    axes[0].grid(True, alpha=0.3)
 
-    axes[0, 1].set_xlabel("Sample Size")
-    axes[0, 1].set_ylabel("F1 Score")
-    axes[0, 1].set_title("Structure Recovery F1 Score")
-    axes[0, 1].legend()
-    axes[0, 1].grid(True, alpha=0.3)
-    axes[0, 1].set_ylim(0, 1.1)
+    axes[1].set_xlabel("Sample Size")
+    axes[1].set_ylabel("F1 Score")
+    axes[1].set_title("Structure Recovery F1 Score")
+    axes[1].legend()
+    axes[1].grid(True, alpha=0.3)
+    axes[1].set_ylim(0, 1.1)
 
-    axes[1, 0].set_xlabel("Sample Size")
-    axes[1, 0].set_ylabel("Perfect Recovery Rate")
-    axes[1, 0].set_title("Perfect Structure Recovery Rate")
-    axes[1, 0].legend()
-    axes[1, 0].grid(True, alpha=0.3)
-    axes[1, 0].set_ylim(0, 1.1)
-
-    axes[1, 1].set_xlabel("Sample Size")
-    axes[1, 1].set_ylabel("Discrepancy Error")
-    axes[1, 1].set_title("Observed vs Theoretical n^(-1/2) Convergence")
-    axes[1, 1].legend()
-    axes[1, 1].grid(True, alpha=0.3)
+    axes[2].set_xlabel("Sample Size")
+    axes[2].set_ylabel("Discrepancy Error")
+    axes[2].set_title("Observed vs Theoretical n^(-1/2) Convergence")
+    axes[2].legend()
+    axes[2].grid(True, alpha=0.3)
 
     plt.tight_layout()
     plt.savefig("random_polytree_analysis.pdf", dpi=300, bbox_inches="tight")
     plt.savefig("random_polytree_analysis.png", dpi=300, bbox_inches="tight")
     plt.show()
-    handles, labels = axes[1, 1].get_legend_handles_labels()
-    if handles:
-        axes[1, 1].legend()
 
 
 def print_convergence_summary(all_results: Dict[int, Dict[str, Any]]):
