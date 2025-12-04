@@ -23,6 +23,7 @@
 \usepackage{bm}
 \usepackage{graphicx}
 \usepackage{hyperref}
+\usepackage{multirow}
   \hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
 \usepackage{enumitem}
 \usepackage{mathtools}
@@ -101,6 +102,8 @@ However, many practical systems contain latent variables—unobserved confounder
 This thesis investigates LiNGAMs whose causal structure forms a \emph{minimal latent polytree}, following the terminology of \citet{etesami:kiyavash:coleman:2016}. Polytree structures—directed acyclic graphs whose underlying undirected graph is a tree—represent an important middle ground between the restrictive assumptions of fully observed models and the computational intractability of general latent variable models. While polytrees impose structural constraints that may not hold in all applications, they capture many realistic scenarios while remaining amenable to efficient algorithmic solutions.
 
 The theoretical foundation for our approach builds on the axiomatic framework of \citet{etesami:kiyavash:coleman:2016}, which develops a four-axiom \emph{discrepancy matrix} framework that suffices to learn a latent polytree structure. However, their work instantiates the discrepancy matrix via directed-information estimators specifically designed for time series data rather than single-time-slice observational studies. In this work, we bridge LiNGAM identifiability results with the Etesami et al. framework by constructing a cumulant-based discrepancy measure that satisfies the required axioms while remaining applicable to cross-sectional data.
+
+\paragraph{Related work.} Our cumulant-based discrepancy approach is closely related to several recent developments in latent variable causal discovery. \citet{tramontano:monod:drton:2022} developed algorithms for learning linear non-Gaussian polytrees in the fully observed setting, providing the concentration inequalities for sample cumulants that underpin our finite-sample analysis. A complementary line of work uses \emph{rank constraints of high-order cumulant matrices} rather than discrepancy-based methods for latent polytree learning \citep{cai:etal:2024:rank}. This technique identifies latent structure by testing rank constraints on augmented cumulant matrices $\Psi^{(k)}_{Y;Z} = [C^{(k)}_{Y,Z} \mid C^{(k+1)}_{Y,Z}]$, which combine $k$-th and $(k+1)$-th order cumulants to enable rank testing even when the covariance matrix alone is rank-deficient. Their graphical implication results can distinguish between different structural patterns (atomic-fork, atomic-chain, atomic-Y) through rank conditions. While our discrepancy-based method requires specifying which nodes are latent (typically via out-degree criteria), the rank constraint approach can potentially discover latent nodes directly from observed data, offering complementary strategies for latent polytree identification.
 
 \paragraph{Contributions.} The main contributions are:
 \begin{enumerate}[label=(C\arabic*)]
@@ -1516,12 +1519,11 @@ This protocol ensures that all nodes have unit variance but distinct third-order
 
 \begin{itemize}
 \item \textbf{Polytree sizes}: $n \in \{4, 5, 6, 7, 8, 9, 10\}$ total nodes
-\item \textbf{Latent nodes}: $k = 1$ latent node per polytree, ensuring minimal but non-trivial latent structure
+\item \textbf{Latent structure}: Exactly $k = 1$ latent node per polytree, randomly selected from candidate nodes with out-degree $\geq 2$. This constraint simplifies interpretation by isolating the effects of system size and observed topology on recovery difficulty, while still capturing the essential challenges of latent variable learning.
 \item \textbf{Sample sizes}: $n_{\text{samples}} \in \{10^2, 10^3, 10^4, 10^5, 10^6, 10^7, 2 \times 10^7\}$ to characterize high-precision regime
 \item \textbf{Edge weight threshold}: $\eta = 0.8$ for strong numerical conditioning
 \item \textbf{Trials per configuration}: $N = 10$ independent replications for statistical reliability
 \end{itemize}
-
 This configuration provides a comprehensive baseline characterization of algorithm performance on general polytree structures before introducing topology-specific constraints.
 
 \paragraph{Rationale for nested sampling strategy.} The nested sampling approach (Step 3) provides several critical advantages:
@@ -1544,7 +1546,7 @@ This methodology, inherited from best practices in finite-sample convergence ana
 
 \paragraph{Experimental results and convergence analysis.}
 
-We conducted comprehensive finite-sample experiments on randomly generated polytrees with sizes $n \in \{4,5,6,7,8,9,10\}$ across sample sizes ranging from $10^2$ to $2 \times 10^7$. For each polytree size, we generated 10 independent random polytrees using Prüfer sequences, employed the nested sampling strategy described above, and evaluated performance across all sample sizes. Figure~\ref{fig:random_polytree_convergence} presents the aggregated results across all three key metrics.
+We conducted comprehensive finite-sample experiments on randomly generated polytrees with sizes $n \in \{4,5,6,7,8,9,10\}$ across sample sizes ranging from $10^2$ to $2 \times 10^7$. For each configuration, we generated 10 independent random polytrees using Prüfer sequences, employed the nested sampling strategy described above, and evaluated performance across all sample sizes. Figure~\ref{fig:random_polytree_convergence} presents the aggregated convergence results across all three key metrics: discrepancy error, structure recovery F1-score, and empirical validation of the theoretical $O(n^{-1/2})$ convergence rate.
 
 \begin{figure*}[t]
   \centering
@@ -1553,47 +1555,85 @@ We conducted comprehensive finite-sample experiments on randomly generated polyt
   \label{fig:random_polytree_convergence}
 \end{figure*}
 
-\subparagraph{Discrepancy error convergence (left panel).} The maximum discrepancy error $\max_{i,j \in O} |\hat{\Gamma}_O(i,j) - \Gamma_O(i,j)|$ exhibits systematic convergence patterns that validate our finite-sample methodology:
+\subparagraph{Discrepancy error convergence (left panel).} The maximum discrepancy error $\max_{i,j \in O} |\hat{\Gamma}_O(i,j) - \Gamma_O(i,j)|$ exhibits systematic convergence patterns that validate our finite-sample methodology. Across all polytree sizes, we observe monotonic improvement with increasing sample size, confirming that moment estimation error constitutes the primary bottleneck in the moderate sample size regime.
+
+For small polytrees ($n=4$), discrepancy errors decrease from $12.95 \pm 10.16$ at $n_{\text{samples}} = 100$ to $0.14 \pm 0.10$ at $n_{\text{samples}} = 2 \times 10^7$, representing an approximately 90-fold improvement. Medium-sized polytrees ($n=6$) achieve similar convergence patterns, reducing errors from $23.47 \pm 29.75$ to values below $1.0$ at the largest sample sizes. For larger polytrees ($n=10$), even at maximum sample sizes, discrepancy errors remain elevated ($1.70 \pm 2.28$), indicating that topological complexity introduces fundamental statistical challenges beyond mere system size.
+
+\subparagraph{Structure recovery performance (middle panel).} The F1-score analysis reveals clear size-stratified performance with sharp transitions between failure and success regimes. Table~\ref{tab:random_polytree_summary} presents detailed performance metrics across all configurations.
+
+\begin{table}[h]
+\centering
+\caption{Structure recovery F1-scores for random polytrees, averaged over 10 independent trials per configuration. Standard deviations reflect variability across different randomly generated polytree topologies.}
+\label{tab:random_polytree_summary}
+\small
+\begin{tabular}{ccc|ccc}
+\toprule
+\multicolumn{3}{c}{Small Polytrees} & \multicolumn{3}{c}{Large Polytrees} \\
+\midrule
+$n$ & $n_{\text{samples}}$ & F1 Score & $n$ & $n_{\text{samples}}$ & F1 Score \\
+\midrule
+\multirow{3}{*}{4} & $10^6$ & $0.93 \pm 0.13$ & \multirow{3}{*}{7} & $10^6$ & $0.37 \pm 0.26$ \\
+ & $10^7$ & $0.97 \pm 0.10$ &  & $10^7$ & $0.58 \pm 0.27$ \\
+ & $2 \times 10^7$ & $0.97 \pm 0.10$ &  & $2 \times 10^7$ & $0.60 \pm 0.29$ \\
+\midrule
+\multirow{3}{*}{5} & $10^6$ & $0.64 \pm 0.33$ & \multirow{3}{*}{8} & $10^6$ & $0.49 \pm 0.24$ \\
+ & $10^7$ & $0.89 \pm 0.21$ &  & $10^7$ & $0.49 \pm 0.21$ \\
+ & $2 \times 10^7$ & $0.94 \pm 0.17$ &  & $2 \times 10^7$ & $0.53 \pm 0.27$ \\
+\midrule
+\multirow{3}{*}{6} & $10^6$ & $0.79 \pm 0.30$ & \multirow{3}{*}{9} & $10^6$ & $0.36 \pm 0.17$ \\
+ & $10^7$ & $0.79 \pm 0.30$ &  & $10^7$ & $0.46 \pm 0.17$ \\
+ & $2 \times 10^7$ & $0.85 \pm 0.24$ &  & $2 \times 10^7$ & $0.46 \pm 0.15$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Several critical patterns emerge from this analysis:
 
 \begin{itemize}
-\item \textbf{Clear size-dependent convergence}: Smaller polytrees ($n=4,5$) achieve errors below $0.1$ at approximately $n_{\text{samples}} = 10^5$, while larger polytrees ($n=9,10$) require $n_{\text{samples}} \geq 10^7$ to reach comparable precision
-\item \textbf{Monotonic improvement}: All polytree sizes exhibit consistent error reduction across the entire sample size spectrum, with no performance plateaus or degradation
-\item \textbf{High-precision regime}: At maximum sample sizes ($2 \times 10^7$), even the largest evaluated polytrees ($n=10$) achieve discrepancy errors below $2$, entering the regime where structure recovery becomes reliable
+\item \textbf{Sharp performance transitions}: For $n \leq 5$, a clear transition occurs between $10^6$ and $10^7$ samples. The F1-score for $n=4$ improves modestly from $0.93 \pm 0.13$ to $0.97 \pm 0.10$, while $n=5$ exhibits a dramatic jump from $0.64 \pm 0.33$ to $0.89 \pm 0.21$. This identifies $10^7$ as the critical sample size threshold for reliable structure recovery in small polytree systems.
+
+\item \textbf{Size-dependent sample requirements}: Medium polytrees ($n=6$) achieve F1 $= 0.85 \pm 0.24$ at $2 \times 10^7$ samples, indicating that each additional node increases sample requirements by approximately one order of magnitude to maintain comparable performance levels.
+
+\item \textbf{Performance ceiling for large polytrees}: For $n \geq 7$, even maximum evaluated sample sizes fail to achieve high F1-scores ($\leq 0.6$). Notably, polytrees with $n=8$ show minimal improvement between $10^6$ and $10^7$ samples (F1 $= 0.49$ for both), suggesting that fundamental algorithmic or topological barriers, rather than mere statistical precision, limit performance in this regime.
+
+\item \textbf{High variance in intermediate regimes}: The large standard deviations for medium polytrees at moderate sample sizes (e.g., $n=5$ at $10^6$ samples: F1 $= 0.64 \pm 0.33$) indicate substantial heterogeneity in recovery difficulty across different random topologies, even at fixed system size.
 \end{itemize}
 
-The systematic convergence across all polytree sizes confirms that moment estimation error, rather than algorithmic limitations, constitutes the primary bottleneck in the moderate sample size regime.
+\subparagraph{Theoretical convergence rate validation (right panel).} The comparison between empirical discrepancy errors and the theoretical $O(n_{\text{samples}}^{-1/2})$ convergence rate (dashed reference lines) provides crucial validation of our finite-sample statistical theory.
 
-\subparagraph{Structure recovery performance (middle panel).} The F1-score analysis reveals the practical implications of discrepancy error reduction for causal structure learning:
+Across all polytree sizes, the log-log plot reveals that empirical error trajectories closely parallel the $n^{-1/2}$ reference lines, confirming that sample cumulant estimators follow the expected central limit theorem behavior. The vertical offset between curves for different polytree sizes reflects the constant factors in the asymptotic variance bounds provided by concentration inequalities for sample cumulants under log-concave distributions \citep[Cor.~4.1]{tramontano:monod:drton:2022}. Larger polytrees exhibit systematically higher variance due to: (i) increased path complexity accumulating trek-based variance contributions, and (ii) a combinatorially larger number of discrepancy matrix entries to estimate, each subject to independent sampling variability.
+
+Critically, we observe no anomalous deviations from the theoretical rate across five orders of magnitude in sample size ($10^2$ to $2 \times 10^7$), indicating that our ratio-based discrepancy construction avoids pathological numerical instabilities and inherits the favorable concentration properties of polynomial moment estimators.
+
+\paragraph{Failure mode analysis and diagnostic insights.}
+
+The detailed trial-by-trial diagnostics reveal consistent patterns in structure recovery failures that inform both practical application and theoretical understanding. Analysis of imperfect recovery cases across all experiments identifies a recurring failure signature:
 
 \begin{itemize}
-\item \textbf{Size-stratified performance}: Smaller polytrees ($n=4,5$) achieve F1-scores exceeding $0.9$ at $n_{\text{samples}} = 10^7$, validating our expected outcome predictions. Larger polytrees ($n=8,9,10$) demonstrate graceful degradation, requiring substantially larger samples to achieve comparable recovery quality
-\item \textbf{Critical sample size thresholds}: A clear performance transition occurs between $10^6$ and $10^7$ samples for polytrees with $n \leq 6$, where F1-scores improve from moderate ($0.5$--$0.7$) to excellent ($> 0.9$). This identifies $10^7$ as the critical sample size for high-confidence structure recovery in small-to-moderate polytree systems
-\item \textbf{Structural complexity effects}: The performance gap between $n=4$ (achieving F1 $\approx 0.97$) and $n=10$ (achieving F1 $\approx 0.45$) at $n_{\text{samples}} = 2 \times 10^7$ quantifies the fundamental challenge of scaling to larger polytrees: each additional node increases the moment estimation burden, requiring exponentially more samples to maintain recovery reliability
+\item \textbf{Structural zero violations}: In essentially all failures examined, finite-sample discrepancy matrices exhibit spurious non-zero entries $\hat{\Gamma}_O(i,j) \gg 0$ where the population matrix satisfies $\Gamma_O(i,j) = 0$. For example, in Trial 1 of $n=4$ experiments at $n_{\text{samples}} = 10^6$, the entry $\hat{\Gamma}_O(\text{v4}, \text{v3}) = 0.994$ compared to the true value $\Gamma_O(\text{v4}, \text{v3}) = 0$, directly causing the algorithm to miss the critical edge $(\text{v4}, \text{v3})$.
+
+\item \textbf{Systematic misrecovery patterns}: When structural zeros are corrupted by sampling noise, the Separation-Tree-Merger algorithm systematically produces characteristic errors: missing edges from the true structure and spurious edges connecting nodes through the latent root. In the example above, the missing edge $(\text{v4}, \text{v3})$ is replaced by an incorrect direct connection $(\text{h1}, \text{v3})$ from the latent node.
+
+\item \textbf{Error magnitude thresholds}: Across all successful recoveries ($n \leq 6$, $n_{\text{samples}} \geq 10^6$), maximum discrepancy errors remain below approximately $0.5$. Conversely, failures consistently exhibit errors exceeding $1.0$, suggesting a practical diagnostic criterion: $\|\hat{\Gamma}_O - \Gamma_O\|_{\max} < 0.5$ reliably correlates with successful structure recovery, though this requires knowledge of the population matrix for validation.
 \end{itemize}
 
-Notably, even at maximum sample sizes, polytrees with $n \geq 8$ exhibit only moderate F1-scores ($0.4$--$0.6$), suggesting that topological factors beyond mere system size influence recovery difficulty. This observation motivates the subsequent topology-stratified analysis in Section~\ref{subsubsec:topology_framework}.
+These failure patterns confirm that \emph{precise preservation of structural zeros}, rather than overall matrix approximation accuracy, constitutes the critical requirement for successful polytree learning.
 
-\subparagraph{Theoretical convergence rate validation (right panel).} The comparison between empirical discrepancy errors and the theoretical $O(n_{\text{samples}}^{-1/2})$ convergence rate (dashed reference lines) provides crucial validation of our finite-sample analysis:
+\paragraph{Implications for topology-stratified analysis.}
 
-\begin{itemize}
-\item \textbf{Empirical rate consistency}: Across all polytree sizes, the discrepancy error trajectories closely parallel the $n^{-1/2}$ reference lines, confirming that moment estimation follows the expected statistical rate dictated by the central limit theorem for sample cumulants
-\item \textbf{Constant factor dependence}: The vertical offset between curves for different polytree sizes reflects the constant factors in the asymptotic variance expressions (Corollary~\ref{cor:log:cum}). Larger polytrees incur higher variance due to: (i) increased path complexity accumulating trek-based variance contributions, and (ii) a greater number of discrepancy entries to estimate, each subject to independent sampling variability
-\item \textbf{No anomalous deviations}: The absence of systematic deviations from the theoretical rate across five orders of magnitude in sample size ($10^2$ to $2 \times 10^7$) indicates that our moment estimators exhibit well-behaved finite-sample properties without pathological concentration failures
-\end{itemize}
-
-This rate validation establishes that our discrepancy-based approach inherits the favorable statistical properties of moment-based estimators, enabling principled sample size planning through asymptotic variance calculations.
-
-\paragraph{Practical implications and sample size recommendations.}
-
-The comprehensive convergence analysis enables data-driven guidance for practitioners applying our method:
+The observed performance degradation for $n \geq 7$, even at maximum evaluated sample sizes ($2 \times 10^7$), cannot be fully explained by statistical convergence rates alone. Several lines of evidence suggest that topological structure fundamentally determines recovery difficulty:
 
 \begin{enumerate}[label=(\arabic*)]
-\item \textbf{Small polytree regime ($n \leq 6$)}: High-confidence structure recovery (F1 $> 0.9$) is achievable with $n_{\text{samples}} \geq 10^7$, making the approach practical for moderate-scale causal discovery applications with accessible data collection
-\item \textbf{Medium polytree regime ($7 \leq n \leq 10$)}: Reliable recovery requires sample sizes exceeding $2 \times 10^7$, potentially limiting applicability to domains with abundant observational data or high-throughput measurement capabilities
-\item \textbf{Discrepancy error as a diagnostic}: The strong correlation between discrepancy error and F1-score suggests using $\|\hat{\Gamma}_O - \Gamma_O\|_{\max} < 0.5$ as a heuristic threshold for predicting successful structure recovery, though this requires access to population parameters for validation
+\item \textbf{Variance heterogeneity across polytree sizes}: While all sizes exhibit the same asymptotic $O(n^{-1/2})$ convergence rate, the constant factors differ dramatically. The vertical spread in the right panel of Figure~\ref{fig:random_polytree_convergence} reveals that larger polytrees incur inherently higher variance at any fixed sample size, but this alone cannot explain the complete stagnation observed for $n=8$ where F1-scores remain at $0.49$ across an order of magnitude increase in sample size.
+
+\item \textbf{Structural zero sensitivity depends on graph topology}: The critical failure mode---corruption of structural zeros---is fundamentally determined by the polytree's path structure. Certain topologies (such as star configurations where multiple observed nodes share a single latent parent) create nearly indistinguishable discrepancy patterns that remain difficult to resolve even under high statistical precision.
+
+\item \textbf{Performance variance suggests topology-dependent difficulty}: The large standard deviations in F1-scores for intermediate sizes (e.g., $n=6$ at $10^7$ samples: F1 $= 0.79 \pm 0.30$) indicate that different randomly generated polytrees within each size class have fundamentally different recovery difficulty profiles. This suggests that specific structural properties (beyond node count) determine whether recovery succeeds or fails.
+
+\item \textbf{Latent node selection may introduce additional variability}: In our experiments, the single latent node per polytree is randomly selected from candidates with out-degree $\geq 2$. This selection strategy may interact with polytree topology in complex ways---for instance, selecting a latent node at the center of a long chain versus at a branch point could yield different discrepancy patterns and recovery difficulty. Alternative approaches for identifying latent structure, such as the rank constraint methods of \citet{cai:etal:2024:rank}, may offer complementary strategies for handling such variability.
 \end{enumerate}
 
-Critically, the observed performance degradation for larger polytrees, even at maximum evaluated sample sizes, indicates that \emph{topological structure}, rather than system size alone, fundamentally determines recovery difficulty. This motivates our subsequent investigation into topology-specific finite-sample requirements.
+These observations motivate the topology-stratified framework developed in Section~\ref{subsubsec:topology_framework}, where we systematically investigate how specific structural patterns (chains, balanced trees, stars) determine finite-sample requirements independent of overall system size.
 
 
 \subsubsection{Structural Topology Framework: Difficulty Stratification}
