@@ -503,13 +503,11 @@ def create_polytree_from_topology(
                 weights[(u, v)] = w
                 break
 
-    # Set unit noise parameters (use string keys like 'v1', 'v2', etc.)
-    sigmas_int = {i: 1.0 for i in range(1, n + 1)}
-    kappas_int = {i: 1.0 for i in range(1, n + 1)}
-
-    # Also create string-keyed versions for Polytree
-    sigmas_str = {f"v{i}": 1.0 for i in range(1, n + 1)}
-    kappas_str = {f"v{i}": 1.0 for i in range(1, n + 1)}
+    # Sample RANDOM noise parameters (matching get_random_polytree_via_pruefer behavior!)
+    # This is CRITICAL for fair comparison
+    nodes_int = list(range(1, n + 1))
+    from random_polytrees_pruefer import sample_sigmas_kappas
+    sigmas, kappas = sample_sigmas_kappas(nodes_int, rng, family="gamma")
 
     # Create node name mappings
     latent_nodes = sorted([f"v{i}" for i in latent_set])
@@ -539,10 +537,8 @@ def create_polytree_from_topology(
         "edges_undirected": edges_undirected_named,
         "edges_directed": edges_directed_named,
         "weights": weights_named,
-        "sigmas": sigmas_int,  # For compatibility with some functions
-        "kappas": kappas_int,
-        "sigmas_str": sigmas_str,  # For Polytree class
-        "kappas_str": kappas_str,
+        "sigmas": sigmas,  # String keys: {'v1': 1.0, 'v2': 1.0, ...}
+        "kappas": kappas,  # String keys: {'v1': 1.0, 'v2': 1.0, ...}
         "hidden_nodes": latent_nodes,
         "observed_nodes": observed_nodes,
         "topology_type": topology_type,
@@ -553,19 +549,11 @@ def create_polytree_from_topology(
 def compute_population_discrepancy_from_topology(
         topology_structure: Dict,
 ) -> np.ndarray:
-    """
-    Compute population discrepancy matrix for a topology structure.
 
-    Args:
-        topology_structure: Output from create_polytree_from_topology
-
-    Returns:
-        Population discrepancy matrix (full, including latent nodes)
-    """
     edges = topology_structure["edges_directed"]
     weights = topology_structure["weights"]
-    sigmas = topology_structure["sigmas_str"]  # Use string keys
-    kappas = topology_structure["kappas_str"]  # Use string keys
+    sigmas = topology_structure["sigmas"]  # Already string keys now!
+    kappas = topology_structure["kappas"]  # Already string keys now!
 
     # Convert to edge weight dictionary with string keys
     edge_weights = {}
@@ -582,21 +570,12 @@ def compute_population_discrepancy_from_topology(
 
 
 def compute_observed_discrepancy_from_topology(
-        topology_structure: Dict,
-        Gamma_full: np.ndarray,
+topology_structure: Dict,
+Gamma_full: np.ndarray,
 ) -> Tuple[np.ndarray, List[str]]:
-    """
-    Extract observed discrepancy matrix by marginalizing out latent nodes.
 
-    Args:
-        topology_structure: Output from create_polytree_from_topology
-        Gamma_full: Full population discrepancy matrix
-
-    Returns:
-        (Gamma_obs, observed_nodes): Observed discrepancy matrix and node names
-    """
-    all_nodes_dict = topology_structure["sigmas"]
-    all_nodes = sorted([f"v{i}" for i in all_nodes_dict.keys()])
+    # sigmas keys are already strings like 'v1', 'v2', etc.
+    all_nodes = sorted(topology_structure["sigmas"].keys())
     latent_nodes = set(topology_structure["hidden_nodes"])
     observed_nodes = [n for n in all_nodes if n not in latent_nodes]
 
@@ -616,7 +595,7 @@ if __name__ == "__main__":
 
     test_configs = [
         ("chain", 10, 1),
-        ("balanced", 10, 1),
+        ("balanced", 10, 2),
         ("star", 10, 1),
     ]
 
