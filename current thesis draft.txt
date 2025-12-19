@@ -78,7 +78,7 @@
 \maketitle
 
 \begin{abstract}
-This thesis studies linear, non-Gaussian, acyclic models (LiNGAM) whose underlying directed graph is a \emph{minimal latent polytree}. Building on moment identities from the LiNGAM literature, we propose a novel discrepancy matrix based on second and third cumulants of the observed variables. We adapt the algorithm proposed by Etesami et al. to the LiNGAM setting, enabling provably consistent recovery of both observed and latent portions of the polytree. We outline theoretical guarantees and provide an empirical evaluation on synthetic data sets.
+This thesis studies linear, non-Gaussian, acyclic models (LiNGAM) whose underlying directed graph is a \emph{minimal latent polytree}. Building on moment identities from the LiNGAM literature, we propose a novel discrepancy matrix based on second and third order cumulants of the observed variables. We adapt the algorithm proposed by Etesami et al. to the LiNGAM setting, enabling provably consistent recovery of both observed and latent portions of the polytree. We outline theoretical guarantees and provide an empirical evaluation on synthetic data sets.
 \end{abstract}
 
 \tableofcontents
@@ -1730,7 +1730,7 @@ Chain polytrees naturally extend the validated four-node example and represent t
 \paragraph{Experimental design for chains.} Chain polytree experiments follow this protocol:
 
 \begin{enumerate}[label=(\arabic*)]
-\item \textbf{Chain generation}: Generate random polytrees with $n \in \{6, 8, 10, 15, 20\}$ total nodes, constraining the Prüfer sequence to favor linear structures with minimal branching
+\item \textbf{Chain generation}: Generate random polytrees with $n \in \{6, 8, 10\}$ total nodes, constraining the Prüfer sequence to favor linear structures with minimal branching
 
 \item \textbf{Latent proportion variation}: For each chain size, vary the number of latent nodes $k \in \{1, 2, 3\}$, selecting from nodes with out-degree $\geq 2$, subject to $k \leq \lfloor (n-1)/2 \rfloor$
 
