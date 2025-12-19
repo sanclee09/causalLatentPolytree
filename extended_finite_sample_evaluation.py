@@ -748,7 +748,7 @@ def plot_convergence_analysis(all_results: Dict[int, Dict[str, Any]]):
     axes[2].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig("random_polytree_analysis.pdf", dpi=300, bbox_inches="tight")
+    plt.savefig("star_polytree_analysis.pdf", dpi=300, bbox_inches="tight")
     plt.savefig("random_polytree_analysis.png", dpi=300, bbox_inches="tight")
     plt.show()
 

@@ -282,20 +282,20 @@ def generate_balanced_topology(
 
         # First, give each branching parent children
         for parent in all_parents:
-            if parent == root:
-                continue  # Handle root separately
+            # Don't skip root! Let it get its 2 children like any latent node
 
             if parent not in assigned:
-                # This parent needs to be connected first
-                if assigned:
+                # Connect parent to tree (only for non-root parents)
+                if parent != root and assigned:
                     connector = rng.choice(list(assigned))
                     edges.append((connector, parent))
                     assigned.add(parent)
+                    if parent in child_pool:
+                        child_pool.remove(parent)
 
-            # Give this parent children (scale with graph size)
-            # IMPORTANT: Max 2 children per node for balanced structure
+            # Give this parent children
             if parent in latent_nodes:
-                n_children = 2  # Latent nodes get exactly 2 children
+                n_children = 2
             else:
                 # Branching observed: 1-2 children
                 if n == 5:
@@ -319,9 +319,16 @@ def generate_balanced_topology(
                 assigned.add(parent)
 
         # Assign remaining children to random parents
+        # CRITICAL: Ensure no self-loops (parent != child)
         while child_pool:
-            parent = rng.choice(all_parents)
-            child = child_pool.pop(0)
+            child = child_pool[0]  # Peek at next child
+            # Filter out self-loops: only parents that are not this child
+            available_parents = [p for p in all_parents if p != child]
+            if not available_parents:
+                # This shouldn't happen if topology is valid, but be safe
+                break
+            parent = rng.choice(available_parents)
+            child_pool.pop(0)  # Now remove it
             edges.append((parent, child))
             assigned.add(child)
 
