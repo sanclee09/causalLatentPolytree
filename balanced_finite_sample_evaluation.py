@@ -7,7 +7,7 @@ from topology_stratified_evaluation import create_polytree_from_topology
 
 
 # NOW patch the function IN THE MODULE where it's used
-def get_chain_polytree(n, seed, **kwargs):
+def get_balanced_polytree(n, seed, **kwargs):
     """Generate chain polytree instead of random."""
     return create_polytree_from_topology(
         topology_type='balanced',
@@ -18,7 +18,7 @@ def get_chain_polytree(n, seed, **kwargs):
 
 
 # Patch it in the extended_finite_sample_evaluation module namespace
-extended_finite_sample_evaluation.get_random_polytree_via_pruefer = get_chain_polytree
+extended_finite_sample_evaluation.get_random_polytree_via_pruefer = get_balanced_polytree
 
 
 def main():
@@ -41,45 +41,27 @@ def main():
     all_results = {}
 
     for n_nodes in polytree_sizes:
-        # Just call the existing function!
         results = extended_finite_sample_evaluation.run_finite_sample_for_random_polytree(
             n_nodes=n_nodes,
             sample_sizes=sample_sizes,
             n_trials=n_trials,
             seed=base_seed + n_nodes,
-            n_latent=1,  # Chain always has 1 latent
+            n_latent=1,
         )
         all_results[n_nodes] = results
 
-    # Use existing summary function
     extended_finite_sample_evaluation.print_convergence_summary(all_results)
 
-    # Create COMBINED plot with all n values (like thesis Figure 7)
-    extended_finite_sample_evaluation.plot_convergence_analysis(all_results)
+    # Balanced-specific output names
+    extended_finite_sample_evaluation.plot_convergence_analysis(
+        all_results,
+        output_prefix="balanced_polytree_analysis"
+    )
 
-    # Save results
-    import pandas as pd
-    summary_data = []
-    for n_nodes, data in all_results.items():
-        for result in data['results']:
-            summary_data.append({
-                'topology': 'chain',
-                'n_nodes': n_nodes,
-                'n_samples': result['n_samples'],
-                'f1_mean': result['f1_mean'],
-                'f1_std': result['f1_std'],
-                'precision_mean': result['precision_mean'],
-                'recall_mean': result['recall_mean'],
-                'perfect_recovery_rate': result['perfect_recovery_rate'],
-                'discrepancy_error_mean': result.get('discrepancy_error_mean', float('nan')),
-                'n_trials_successful': result['n_trials_successful'],
-                'n_trials_total': result['n_trials_total'],
-            })
-
-    summary_df = pd.DataFrame(summary_data)
-    summary_df.to_csv("balanced_topology_results.csv", index=False)
-    print(f"\n✅ Results saved to 'balanced_topology_results.csv'")
-    print(f"✅ Combined plot saved to 'random_polytree_analysis.png'")
+    summary_df = extended_finite_sample_evaluation.save_results_to_csv(
+        all_results,
+        topology='balanced'
+    )
 
     return all_results, summary_df
 

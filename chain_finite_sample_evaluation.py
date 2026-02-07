@@ -27,7 +27,7 @@ def main():
     print("CHAIN TOPOLOGY FINITE-SAMPLE EVALUATION")
     print("=" * 70)
 
-    polytree_sizes = [6, 8, 10]
+    polytree_sizes = [6, 8, 10, 20, 30]
     sample_sizes = [100, 1000, 10000, 100000, 1000000, 10000000, 20000000]
     n_trials = 10
     base_seed = 42
@@ -41,45 +41,29 @@ def main():
     all_results = {}
 
     for n_nodes in polytree_sizes:
-        # Just call the existing function!
         results = extended_finite_sample_evaluation.run_finite_sample_for_random_polytree(
             n_nodes=n_nodes,
             sample_sizes=sample_sizes,
             n_trials=n_trials,
             seed=base_seed + n_nodes,
-            n_latent=1,  # Chain always has 1 latent
+            n_latent=1,
         )
         all_results[n_nodes] = results
 
     # Use existing summary function
     extended_finite_sample_evaluation.print_convergence_summary(all_results)
 
-    # Create COMBINED plot with all n values (like thesis Figure 7)
-    extended_finite_sample_evaluation.plot_convergence_analysis(all_results)
+    # Create plots with chain-specific name
+    extended_finite_sample_evaluation.plot_convergence_analysis(
+        all_results,
+        output_prefix="chain_polytree_analysis"
+    )
 
-    # Save results
-    import pandas as pd
-    summary_data = []
-    for n_nodes, data in all_results.items():
-        for result in data['results']:
-            summary_data.append({
-                'topology': 'chain',
-                'n_nodes': n_nodes,
-                'n_samples': result['n_samples'],
-                'f1_mean': result['f1_mean'],
-                'f1_std': result['f1_std'],
-                'precision_mean': result['precision_mean'],
-                'recall_mean': result['recall_mean'],
-                'perfect_recovery_rate': result['perfect_recovery_rate'],
-                'discrepancy_error_mean': result.get('discrepancy_error_mean', float('nan')),
-                'n_trials_successful': result['n_trials_successful'],
-                'n_trials_total': result['n_trials_total'],
-            })
-
-    summary_df = pd.DataFrame(summary_data)
-    summary_df.to_csv("chain_topology_results.csv", index=False)
-    print(f"\n✅ Results saved to 'chain_topology_results.csv'")
-    print(f"✅ Combined plot saved to 'random_polytree_analysis.png'")
+    # Save results with shared function
+    summary_df = extended_finite_sample_evaluation.save_results_to_csv(
+        all_results,
+        topology='chain'
+    )
 
     return all_results, summary_df
 

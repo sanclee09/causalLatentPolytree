@@ -307,8 +307,21 @@ def _run_single_sample_size(
 
         # Rest remains exactly the same...
         # Compute discrepancy error
-        discrepancy_error = np.max(np.abs(Gamma_finite_obs - Gamma_population_obs))
-        print(f"    Discrepancy error: {discrepancy_error:.6f}")
+        discrepancy_diff = np.abs(Gamma_finite_obs - Gamma_population_obs)
+
+        error_metrics = {
+            "discrepancy_error_max": np.max(discrepancy_diff),
+            "discrepancy_error_mean": np.mean(discrepancy_diff),
+            "discrepancy_error_median": np.median(discrepancy_diff),
+            "discrepancy_error_90th": np.percentile(discrepancy_diff, 90),
+            "discrepancy_error_std": np.std(discrepancy_diff),
+        }
+
+        print(f"    Discrepancy errors:")
+        print(f"      Max:    {error_metrics['discrepancy_error_max']:.6f}")
+        print(f"      Mean:   {error_metrics['discrepancy_error_mean']:.6f}")
+        print(f"      Median: {error_metrics['discrepancy_error_median']:.6f}")
+        print(f"      90th%%:  {error_metrics['discrepancy_error_90th']:.6f}")
 
         # Recover structure
         pred_edges_list, true_edges_list = _recover_and_compare_structure(
@@ -343,7 +356,7 @@ def _run_single_sample_size(
                 print(f"      Extra ({len(extra)}): {extra}")
 
         return {
-            "discrepancy_error": discrepancy_error,
+            **error_metrics,  # Include all error metrics
             "recovered_edges": pred_edges_list,
             **metrics,
             "success": True,
@@ -632,55 +645,122 @@ def _print_trial_results(
             print(f"    Extra ({len(extra)}): {extra}")
 
 
+def save_results_to_csv(all_results: Dict[int, Dict[str, Any]], topology: str, filename: str = None):
+    """
+    Save results to CSV with all error metrics.
+
+    Args:
+        all_results: Dictionary of results from run_finite_sample_for_random_polytree
+        topology: Topology type ('chain', 'balanced', 'star', 'random', etc.)
+        filename: Optional custom filename. If None, uses f"{topology}_topology_results.csv"
+    """
+    import pandas as pd
+
+    if filename is None:
+        filename = f"{topology}_topology_results.csv"
+
+    summary_data = []
+    for n_nodes, data in all_results.items():
+        for result in data['results']:
+            summary_data.append({
+                'topology': topology,
+                'n_nodes': n_nodes,
+                'n_samples': result['n_samples'],
+
+                # All error metrics (if available)
+                'discrepancy_error_max_mean': result.get('discrepancy_error_max_mean', float('nan')),
+                'discrepancy_error_max_std': result.get('discrepancy_error_max_std', float('nan')),
+                'discrepancy_error_mean_mean': result.get('discrepancy_error_mean_mean', float('nan')),
+                'discrepancy_error_mean_std': result.get('discrepancy_error_mean_std', float('nan')),
+                'discrepancy_error_median_mean': result.get('discrepancy_error_median_mean', float('nan')),
+                'discrepancy_error_median_std': result.get('discrepancy_error_median_std', float('nan')),
+                'discrepancy_error_90th_mean': result.get('discrepancy_error_90th_mean', float('nan')),
+                'discrepancy_error_90th_std': result.get('discrepancy_error_90th_std', float('nan')),
+
+                # Recovery metrics
+                'f1_mean': result['f1_mean'],
+                'f1_std': result['f1_std'],
+                'precision_mean': result['precision_mean'],
+                'precision_std': result.get('precision_std', float('nan')),
+                'recall_mean': result['recall_mean'],
+                'recall_std': result.get('recall_std', float('nan')),
+                'perfect_recovery_rate': result['perfect_recovery_rate'],
+
+                # Trial info
+                'n_trials_successful': result['n_trials_successful'],
+                'n_trials_total': result['n_trials_total'],
+
+                # Latent/observed info
+                'n_latent_mean': result.get('n_latent_mean', float('nan')),
+                'n_latent_std': result.get('n_latent_std', float('nan')),
+                'n_observed_mean': result.get('n_observed_mean', float('nan')),
+                'n_observed_std': result.get('n_observed_std', float('nan')),
+            })
+
+    summary_df = pd.DataFrame(summary_data)
+    summary_df.to_csv(filename, index=False)
+    print(f"\n✅ Results saved to '{filename}'")
+    return summary_df
+
 def _aggregate_trial_results(
-    successful_trials: List[Dict], n_nodes: int, n_samples: int, n_trials: int
+        successful_trials: List[Dict], n_nodes: int, n_samples: int, n_trials: int
 ) -> Dict[str, Any]:
     """Aggregate statistics across successful trials."""
+
+    # Define all metrics to aggregate
+    metrics_to_aggregate = [
+        "discrepancy_error_max",
+        "discrepancy_error_mean",
+        "discrepancy_error_median",
+        "discrepancy_error_90th",
+        "n_latent",
+        "n_observed",
+        "precision",
+        "recall",
+        "f1",
+    ]
+
     aggregated = {
         "n_nodes": n_nodes,
         "n_samples": n_samples,
         "n_trials_total": n_trials,
         "n_trials_successful": len(successful_trials),
-        "n_latent_mean": np.mean([t["n_latent"] for t in successful_trials]),
-        "n_latent_std": np.std([t["n_latent"] for t in successful_trials]),
-        "n_observed_mean": np.mean([t["n_observed"] for t in successful_trials]),
-        "n_observed_std": np.std([t["n_observed"] for t in successful_trials]),
-        "discrepancy_error_mean": np.mean(
-            [t["discrepancy_error"] for t in successful_trials]
-        ),
-        "discrepancy_error_std": np.std(
-            [t["discrepancy_error"] for t in successful_trials]
-        ),
-        "precision_mean": np.mean([t["precision"] for t in successful_trials]),
-        "precision_std": np.std([t["precision"] for t in successful_trials]),
-        "recall_mean": np.mean([t["recall"] for t in successful_trials]),
-        "recall_std": np.std([t["recall"] for t in successful_trials]),
-        "f1_mean": np.mean([t["f1"] for t in successful_trials]),
-        "f1_std": np.std([t["f1"] for t in successful_trials]),
-        "perfect_recovery_rate": np.mean([t["perfect"] for t in successful_trials]),
     }
+
+    # Aggregate each metric
+    for metric in metrics_to_aggregate:
+        values = [t[metric] for t in successful_trials]
+        aggregated[f"{metric}_mean"] = np.mean(values)
+        aggregated[f"{metric}_std"] = np.std(values)
+
+    aggregated["perfect_recovery_rate"] = np.mean([t["perfect"] for t in successful_trials])
 
     print(
         f"\n  === Summary for n={n_samples:,} ({len(successful_trials)}/{n_trials} successful) ==="
     )
+    print(f"  Latent nodes: {aggregated['n_latent_mean']:.1f} ± {aggregated['n_latent_std']:.1f}")
+    print(f"  Discrepancy errors:")
+    print(f"    Max:    {aggregated['discrepancy_error_max_mean']:.6f} ± {aggregated['discrepancy_error_max_std']:.6f}")
     print(
-        f"  Latent nodes: {aggregated['n_latent_mean']:.1f} ± {aggregated['n_latent_std']:.1f}"
-    )
+        f"    Mean:   {aggregated['discrepancy_error_mean_mean']:.6f} ± {aggregated['discrepancy_error_mean_std']:.6f}")
     print(
-        f"  Discrepancy error: {aggregated['discrepancy_error_mean']:.6f} ± {aggregated['discrepancy_error_std']:.6f}"
-    )
+        f"    Median: {aggregated['discrepancy_error_median_mean']:.6f} ± {aggregated['discrepancy_error_median_std']:.6f}")
     print(f"  F1 Score: {aggregated['f1_mean']:.3f} ± {aggregated['f1_std']:.3f}")
     print(f"  Perfect recovery: {aggregated['perfect_recovery_rate']:.1%}")
 
     return aggregated
 
 
-def plot_convergence_analysis(all_results: Dict[int, Dict[str, Any]]):
+def plot_convergence_analysis(all_results: Dict[int, Dict[str, Any]], output_prefix: str = "random_polytree_analysis"):
     """
     Generate convergence analysis plots for finite-sample evaluation.
+    Now with 4 separate plots: Max, Mean, Median errors, and F1 Score.
+
+    Args:
+        all_results: Dictionary of results
+        output_prefix: Prefix for output files (default: "random_polytree_analysis")
     """
-    # Change from 2x2 to 1x3 layout (removing perfect recovery plot)
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
     colors = plt.cm.viridis(np.linspace(0, 0.9, len(all_results)))
 
@@ -693,63 +773,57 @@ def plot_convergence_analysis(all_results: Dict[int, Dict[str, Any]]):
             continue
 
         plot_sample_sizes = [r["n_samples"] for r in results]
-        plot_error_means = [r["discrepancy_error_mean"] for r in results]
+        plot_error_max = [r.get("discrepancy_error_max_mean", float('nan')) for r in results]
+        plot_error_mean = [r.get("discrepancy_error_mean_mean", float('nan')) for r in results]
+        plot_error_median = [r.get("discrepancy_error_median_mean", float('nan')) for r in results]
         plot_f1_means = [r["f1_mean"] for r in results]
 
-        # Discrepancy error convergence (no shading)
-        axes[0].loglog(
-            plot_sample_sizes, plot_error_means, "o-", color=color, label=label
-        )
+        # Plot 1: Max error convergence
+        axes[0, 0].loglog(plot_sample_sizes, plot_error_max, 'o-', color=color, label=label)
 
-        # F1 Score (no shading)
-        axes[1].semilogx(
-            plot_sample_sizes, plot_f1_means, "o-", color=color, label=label
-        )
+        # Plot 2: Mean error convergence
+        axes[0, 1].loglog(plot_sample_sizes, plot_error_mean, 'o-', color=color, label=label)
 
-        # Theoretical n^(-1/2) comparison (same color for theory and observed)
-        if len(plot_sample_sizes) > 1:
-            theoretical = plot_error_means[0] * np.sqrt(
-                plot_sample_sizes[0] / np.array(plot_sample_sizes)
-            )
-            # Dashed line for theory, solid for observed, same color
-            axes[2].loglog(
-                plot_sample_sizes,
-                theoretical,
-                "--",
-                color=color,
-                alpha=0.7,
-            )
-            axes[2].loglog(
-                plot_sample_sizes,
-                plot_error_means,
-                "o-",
-                color=color,
-                label=label,
-            )
+        # Plot 3: Median error convergence
+        axes[1, 0].loglog(plot_sample_sizes, plot_error_median, 'o-', color=color, label=label)
+
+        # Plot 4: F1 Score
+        axes[1, 1].semilogx(plot_sample_sizes, plot_f1_means, 'o-', color=color, label=label)
 
     # Formatting
-    axes[0].set_xlabel("Sample Size")
-    axes[0].set_ylabel("Max Discrepancy Error")
-    axes[0].set_title("Discrepancy Error Convergence")
-    axes[0].legend()
-    axes[0].grid(True, alpha=0.3)
+    axes[0, 0].set_xlabel("Sample Size")
+    axes[0, 0].set_ylabel("Max Discrepancy Error")
+    axes[0, 0].set_title("Max Discrepancy Error Convergence")
+    axes[0, 0].legend()
+    axes[0, 0].grid(True, alpha=0.3)
 
-    axes[1].set_xlabel("Sample Size")
-    axes[1].set_ylabel("F1 Score")
-    axes[1].set_title("Structure Recovery F1 Score")
-    axes[1].legend()
-    axes[1].grid(True, alpha=0.3)
-    axes[1].set_ylim(0, 1.1)
+    axes[0, 1].set_xlabel("Sample Size")
+    axes[0, 1].set_ylabel("Mean Discrepancy Error")
+    axes[0, 1].set_title("Mean Discrepancy Error Convergence")
+    axes[0, 1].legend()
+    axes[0, 1].grid(True, alpha=0.3)
 
-    axes[2].set_xlabel("Sample Size")
-    axes[2].set_ylabel("Discrepancy Error")
-    axes[2].set_title("Observed vs Theoretical n^(-1/2) Convergence")
-    axes[2].legend()
-    axes[2].grid(True, alpha=0.3)
+    axes[1, 0].set_xlabel("Sample Size")
+    axes[1, 0].set_ylabel("Median Discrepancy Error")
+    axes[1, 0].set_title("Median Discrepancy Error Convergence")
+    axes[1, 0].legend()
+    axes[1, 0].grid(True, alpha=0.3)
+
+    axes[1, 1].set_xlabel("Sample Size")
+    axes[1, 1].set_ylabel("F1 Score")
+    axes[1, 1].set_title("Structure Recovery F1 Score")
+    axes[1, 1].legend()
+    axes[1, 1].grid(True, alpha=0.3)
+    axes[1, 1].set_ylim(0, 1.1)
 
     plt.tight_layout()
-    plt.savefig("star_polytree_analysis.pdf", dpi=300, bbox_inches="tight")
-    plt.savefig("random_polytree_analysis.png", dpi=300, bbox_inches="tight")
+
+    # Save with custom prefix
+    png_path = f"{output_prefix}.png"
+    pdf_path = f"{output_prefix}.pdf"
+    plt.savefig(png_path, dpi=300, bbox_inches="tight")
+    plt.savefig(pdf_path, dpi=300, bbox_inches="tight")
+    print(f"✅ Plots saved to '{png_path}' and '{pdf_path}'")
     plt.show()
 
 
@@ -833,11 +907,28 @@ def main():
                     "n_latent_std": result["n_latent_std"],
                     "n_observed_mean": result["n_observed_mean"],
                     "n_observed_std": result["n_observed_std"],
-                    "discrepancy_error_mean": result["discrepancy_error_mean"],
+
+                    # All error metrics
+                    "discrepancy_error_max_mean": result.get("discrepancy_error_max_mean", float('nan')),
+                    "discrepancy_error_max_std": result.get("discrepancy_error_max_std", float('nan')),
+                    "discrepancy_error_mean_mean": result.get("discrepancy_error_mean_mean", float('nan')),
+                    "discrepancy_error_mean_std": result.get("discrepancy_error_mean_std", float('nan')),
+                    "discrepancy_error_median_mean": result.get("discrepancy_error_median_mean", float('nan')),
+                    "discrepancy_error_median_std": result.get("discrepancy_error_median_std", float('nan')),
+                    "discrepancy_error_90th_mean": result.get("discrepancy_error_90th_mean", float('nan')),
+                    "discrepancy_error_90th_std": result.get("discrepancy_error_90th_std", float('nan')),
+
+                    # Recovery metrics
                     "precision_mean": result["precision_mean"],
+                    "precision_std": result["precision_std"],
                     "recall_mean": result["recall_mean"],
+                    "recall_std": result["recall_std"],
                     "f1_mean": result["f1_mean"],
+                    "f1_std": result["f1_std"],
                     "perfect_recovery_rate": result["perfect_recovery_rate"],
+
+                    "n_trials_successful": result["n_trials_successful"],
+                    "n_trials_total": result["n_trials_total"],
                 }
             )
 

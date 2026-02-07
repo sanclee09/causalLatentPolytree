@@ -48,54 +48,41 @@ def is_properly_balanced(edges: List[Tuple[int, int]], latent_nodes: Set[int], n
     """
     Check if topology is properly balanced (hierarchical, not star-like or chain-like).
 
-    Criteria:
-    - Multiple nodes should have children (not just root)
-    - Max out-degree should be 2 or 3 (not too centralized)
-    - At least 2 nodes with out-degree >= 2
+    Criteria scale with graph size to ensure feasibility.
     """
     outdeg = compute_outdegrees(edges)
-
-    # Count nodes with different out-degrees
     nodes_with_children = sum(1 for d in outdeg.values() if d >= 1)
     nodes_with_multi_children = sum(1 for d in outdeg.values() if d >= 2)
-
     total_nodes = len(set(u for e in edges for u in e))
 
-    # Key constraint: Max out-degree should be at most 3 for balanced
-    # (Prevents one node from dominating)
+    # Max out-degree scales with graph size
     max_deg = max(outdeg.values()) if outdeg else 0
-    if max_deg > 3:
+    if n < 10:
+        max_allowed = 3
+    elif n < 20:
+        max_allowed = 4
+    else:
+        max_allowed = 5
+
+    if max_deg > max_allowed:
         return False
 
-    # For n=5: Need at least 1 non-latent with children AND not too chain-like
+    # Small graphs (n=5)
     if n == 5:
-        non_latent_parents = sum(1 for node, deg in outdeg.items()
-                                 if deg >= 1 and node not in latent_nodes)
-        # Need at least 1 non-latent parent
-        if non_latent_parents < 1:
-            return False
-        # Should have at least 2 nodes with out-degree >= 2 (latent + 1 other)
-        if nodes_with_multi_children < 2:
-            return False
-        return True
-
-    if n < 8:
-        # For small graphs (5-7 nodes), require:
-        # - At least 1 non-latent node with children
-        # - At least 2 nodes total with out-degree >= 2
         non_latent_parents = sum(1 for node, deg in outdeg.items()
                                  if deg >= 1 and node not in latent_nodes)
         return non_latent_parents >= 1 and nodes_with_multi_children >= 2
 
-    # For larger graphs, more stringent requirements
-    # Criterion 1: At least 25% of nodes should have children
-    has_enough_parents = nodes_with_children >= 0.25 * total_nodes
+    # Medium graphs (n < 10)
+    if n < 10:
+        non_latent_parents = sum(1 for node, deg in outdeg.items()
+                                 if deg >= 1 and node not in latent_nodes)
+        return non_latent_parents >= 1 and nodes_with_multi_children >= 2
 
-    # Criterion 2: At least 2 nodes should have 2+ children (creates branching)
+    # Larger graphs: relax requirements
+    min_parent_ratio = 0.15 if n >= 20 else 0.20
+    has_enough_parents = nodes_with_children >= min_parent_ratio * total_nodes
     has_enough_branching = nodes_with_multi_children >= 2
-
-    # Criterion 3: Maximum degree should not be too high (not too star-like)
-    # Already checked max_deg <= 3 above
 
     return has_enough_parents and has_enough_branching
 
