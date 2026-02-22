@@ -1,0 +1,16 @@
+# PDF files
+*.pdf
+
+# Image files
+*.png
+
+# CSV files
+*.csv
+
+# Text files (except thesis draft)
+*.txt
+!current thesis draft.txt
+
+# Other non-Python files
+__pycache__/
+*.pyc
