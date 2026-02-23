@@ -78,7 +78,7 @@
 \maketitle
 
 \begin{abstract}
-This thesis studies linear, non-Gaussian, acyclic models (LiNGAM) whose underlying directed graph is a \emph{minimal latent polytree}. Building on moment identities from the LiNGAM literature, we propose a novel discrepancy matrix based on second and third order cumulants of the observed variables. We adapt the algorithm proposed by Etesami et al. to the LiNGAM setting, enabling provably consistent recovery of both observed and latent portions of the polytree. We outline theoretical guarantees and provide an empirical evaluation on synthetic data sets.
+This thesis studies linear, non-Gaussian, acyclic models (LiNGAM) whose underlying directed graph is a \emph{minimal latent polytree}. Building on moment identities from the LiNGAM literature, we propose a novel discrepancy matrix based on second and third order cumulants of the observed variables. We adapt the algorithm proposed by Etesami et al. to the LiNGAM setting, enabling recovery at the population level with provable guarantees, and demonstrating empirical consistency in finite-sample settings.
 \end{abstract}
 
 \tableofcontents
@@ -90,7 +90,7 @@ Understanding causality—the fundamental question of which events or variables 
 
 A modern framework for causal inference has its roots in the pioneering work of \citet{pearl:causality:2009}, who formalized the distinction between statistical dependence and causal relationships through the lens of directed acyclic graphs (DAGs) and structural equation models. This framework recognizes that while correlation patterns can suggest possible causal structures, additional assumptions—whether experimental, distributional, or structural—are necessary to identify the direction and magnitude of causal effects from observational data alone.
 
-In parallel, the field of graphical modeling has developed sophisticated methods for representing and learning dependency structures among random variables \citep{laurizen:graphical:1996, Edwards:intro:2000}. These approaches excel at capturing the conditional independence relationships that characterize the joint distribution of multivariate data, but they generally cannot distinguish between statistically equivalent models that encode different causal assumptions. This limitation, known as the Markov equivalence problem, represents a fundamental challenge for causal discovery from observational data.
+In parallel, the field of graphical modeling has developed sophisticated methods for representing and learning dependency structures among random variables \citep{lauritzen:graphical:1996, Edwards:intro:2000}. These approaches excel at capturing the conditional independence relationships that characterize the joint distribution of multivariate data, but they generally cannot distinguish between statistically equivalent models that encode different causal assumptions. This limitation, known as the Markov equivalence problem, represents a fundamental challenge for causal discovery from observational data.
 
 \textit{Causal discovery} refers to the algorithmic task of inferring causal structures—typically represented as directed graphs—directly from observational data, without access to experimental interventions. The goal is to recover the directed acyclic graph that encodes the true causal mechanisms generating the data, exploiting distributional or structural assumptions that render the causal model identifiable. Unlike traditional statistical modeling that focuses on prediction or association, causal discovery aims to uncover the asymmetric relationships that describe how changes in one variable would influence others under hypothetical manipulations.
 
@@ -120,6 +120,9 @@ The theoretical foundation for our approach builds on the axiomatic framework of
 \newpage
 \section{Linear Non-Gaussian Structural Causal Models}
 \label{sec:lingam_background}
+\noindent The material in this section largely follows the presentation 
+of \citet{tramontano:monod:drton:2022}, adapted to the latent-variable 
+setting of this thesis.
 
 A directed graph (digraph) is a pair $G = (V, E)$, where $V$ is the set of vertices and $E \subset V \times V$ is the set of directed edges. We let $V = [p] := \{1, \ldots, p\}$. An element $(i, j) \in E$ may also be denoted by $i \to j$. A digraph $G$ is acyclic (i.e., a DAG) if it does not contain any directed cycle: there is no sequence of vertices $i_0, \ldots, i_k$ with $i_j \to i_{j+1} \in E$ for $j = 0, \ldots, k - 1$ and $i_0 = i_k$. 
 
@@ -283,13 +286,15 @@ When all matrices are identical, $A^{(1)} = \cdots = A^{(k)} = A$, we write this
 
 \begin{lemma}
 \label{lem:tucker}
-Let the random vector $X$ follow the LSEM from \eqref{eq:lsem} with noise vector $\varepsilon$.  Let 
-$\mathcal{C}^{(k)}$ and $\varepsilon^{(k)}$ be the $k$th order cumulant tensors of $X$ and $\varepsilon$, respectively.  Then
+Let the random vector $X$ follow the LSEM from \eqref{eq:lsem} with noise 
+vector $\varepsilon$. Let $\mathcal{C}^{(k)}$ and $\varepsilon^{(k)}$ be the 
+$k$th order cumulant tensors of $X$ and $\varepsilon$, respectively. Then
 \begin{align*}
-    \mathcal{C}^{(k)}&= \varepsilon^{(k)}\bullet \big[(I-\Lambda)^{-1} \big]_{j=1}^k\\
-    &=\varepsilon^{(k)}\bullet(I-\Lambda)^{-1}\bullet \dots \bullet (I-\Lambda)^{-1}
+    \mathcal{C}^{(k)} &= \varepsilon^{(k)}\bullet 
+    \bigl[(I-\Lambda)^{-\top}\bigr]_{j=1}^k
 \end{align*}
-is the Tucker product of $\varepsilon^{(k)}$ and $k$ copies of $(I-\Lambda)^{-1}$.
+is the Tucker product of $\varepsilon^{(k)}$ and $k$ copies of 
+$(I-\Lambda)^{-\top}$.
 \end{lemma}
 Notice here that $\mathcal{C}^{(k)}$ reduces to \eqref{eq:Sigma} when $k=2$.
 
@@ -407,7 +412,7 @@ is observationally equivalent to the direct edge model
 X_j &= \varepsilon_j, \\
 X_i &= a_2 a_1 X_j + (a_2 \varepsilon_\ell + \varepsilon_i),
 \end{align*}
-where the composite noise term $\tilde{\varepsilon}_i := a_2 \varepsilon_\ell + \varepsilon_i$ is non-Gaussian whenever either $\varepsilon_\ell$ or $\varepsilon_i$ is non-Gaussian. Thus, both models induce identical joint distributions over the observed variables $(X_j, X_i)$, making it impossible to detect the presence of $\ell$ from observed data. This fundamental limitation motivates restricting attention to latent structures where each latent variable has at least two children, ensuring structural identifiability. This fundamental limitation motivates the minimality constraint in latent polytree models \citep[cf.][]{etesami:kiyavash:coleman:2016}.
+where the composite noise term $\tilde{\varepsilon}_i := a_2 \varepsilon_\ell + \varepsilon_i$ is non-Gaussian whenever either $\varepsilon_\ell$ or $\varepsilon_i$ is non-Gaussian. Thus, both models induce identical joint distributions over the observed variables $(X_j, X_i)$, making it impossible to detect the presence of $\ell$ from observed data. This fundamental limitation motivates restricting attention to latent structures where each latent variable has at least two children, ensuring structural identifiability\citep[cf.][]{etesami:kiyavash:coleman:2016}.
 
 \begin{definition}[Latent--LiNGAM polytree model]\label{def:latent_lingam_model}
 A random vector $X\in\mathbb R^{|V|}$ follows the latent--LiNGAM polytree model on $(G,O)$ if:
@@ -425,7 +430,7 @@ This model combines the identifiability advantages of non-Gaussian noise with th
 Under the latent-LiNGAM polytree assumptions, several important properties hold:
 
 \begin{enumerate}[label=(\arabic*)]
-\item \textbf{Path uniqueness}: The unique directed path between any $i,j\in O$ factors through their lowest common ancestor (LCA). This property will underpin our discrepancy construction.
+\item \textbf{Path uniqueness}: The unique undirected path between any $i,j\in O$ factors through their lowest common ancestor (LCA). This property will underpin our discrepancy construction.
 
 \item \textbf{Moment identifiability}: The non-Gaussian noise assumption ensures that higher-order cumulants provide sufficient information to identify both the structure and parameters of the model, breaking the equivalence classes that arise under Gaussianity.
 
@@ -499,77 +504,195 @@ where the product is taken over the edges $e$ of the unique trek connecting $i$ 
 This result implies that $\rho_{i,j} = 0$ if and only if there exists no trek connecting $i$ and $j$ in the polytree. This is particularly useful in interpreting the case $\gamma(i,j) = -1$ in Definition~\ref{def:discrepancy}.
 \end{remark}
 
+\begin{definition}[Generic parameters]\label{def:generic}
+The structural parameters $(\Lambda,\,\sigma^2,\,\kappa)$ of the
+latent-LiNGAM polytree model are called \emph{generic} if they do not
+satisfy any non-trivial polynomial identity in the edge weights, noise
+variances, and noise third cumulants.  Equivalently, the parameters are
+generic if they lie outside a finite union of proper algebraic
+hypersurfaces in the parameter space
+\[
+  \mathbb{R}^{|E|}
+  \times\mathbb{R}_{>0}^{|V|}
+  \times(\mathbb{R}\setminus\{0\})^{|V|}.
+\]
+Since every absolutely continuous distribution on the parameter space
+assigns probability one to the generic set, this condition is satisfied
+with probability one under any continuous random parameter model.
+\end{definition}
+
 \begin{proposition}[Axioms]\label{prop:axioms}
-The map $\gamma:O\times O\to\mathbb R$ defined in Definition~\ref{def:discrepancy} satisfies the four axioms of Definition~\ref{def:discrepancy_paper1} on the latent--LiNGAM polytree model, provided the cumulants exist.
+For generic structural parameters 
+(Definition~\ref{def:generic}), the map 
+$\gamma:O\times O\to\mathbb R$ defined in 
+Definition~\ref{def:discrepancy} satisfies the four axioms of 
+Definition~\ref{def:discrepancy_paper1} on the latent--LiNGAM polytree 
+model, provided the cumulants exist.
 \end{proposition}
 
 \begin{proof}
 We verify that the cumulant discrepancy measure $\gamma: O \times O \to \mathbb{R}$ defined in Definition~\ref{def:discrepancy} satisfies the four axioms of Definition~\ref{def:discrepancy_paper1}, assuming all required cumulants exist.
 
 \begin{enumerate}[label=(\arabic*)]
-  \item 
-    From Definition~\ref{def:discrepancy}, $\gamma(i,i) = 0$. Assume $i \ne j$ and that $i$ is an ancestor of $j$. Then we know that there is a simple trek between $i$ and $j$. From the simple trek rule we know that $\Sigma_{i,j} = \lambda^{S}\Sigma_{i,i}$ and $\mathcal{C}^{(3)}_{i,i,j} = \lambda^{S}\mathcal{C}^{(3)}_{i}$, where $S$ is the simple trek between $i$ and $j$. Hence we have $(\Sigma_{i,i} \mathcal{C}^{(3)}_{i,i,j} - \Sigma_{i,j} \mathcal{C}^{(3)}_{i,i,i}) = 0$.
+    \item
+    $(\Rightarrow)$
+    From Definition~\ref{def:discrepancy}, $\gamma(i,i)=0$. Now assume $i\ne j$ and
+    that $i$ is an ancestor of $j$. Then $\mathrm{LCA}(i,j)=i$, and the simple trek
+    from $i$ to the pair $(i,j)$ has top $i$, so the simple trek rule gives
+    $\Sigma_{i,j}=\lambda^{S}\Sigma_{i,i}$ and
+    $\mathcal{C}^{(3)}_{i,i,j}=\lambda^{S}\mathcal{C}^{(3)}_{i}$,
+    where $\lambda^{S}$ is the path monomial along the unique directed path $S$ from
+    $i$ to $j$.  Hence
+    $\Sigma_{i,i}\,\mathcal{C}^{(3)}_{i,i,j}-\Sigma_{i,j}\,\mathcal{C}^{(3)}_{i,i,i}
+     =\lambda^{S}\Sigma_{i,i}\mathcal{C}^{(3)}_{i}-\lambda^{S}\Sigma_{i,i}\mathcal{C}^{(3)}_{i}=0$,
+    so $\gamma(i,j)=0$.
 
-  \item Let $v_i$ be the lowest common ancestor of two observed variables $v_j$ and $v_k$. Suppose also that $v_i$ is the lowest common ancestor of $v_j$ and $v_\ell$. We will show that
-  \[
-  \gamma(j,k) = \gamma(j,\ell).
-  \]
-  By Definition~\ref{def:discrepancy}, for distinct observed vertices $u,v$ one has
+    $(\Leftarrow)$
+    Conversely, suppose $\gamma(i,j)=0$ with $i\ne j$ and $\rho_{i,j}\ne 0$.
+    Since $\rho_{i,j}\ne 0$, the first case of Definition~\ref{def:discrepancy}
+    does not apply, so the second case gives
+    \begin{equation}\label{eq:axiom1_converse}
+      \Sigma_{i,i}\,\mathcal{C}^{(3)}_{i,i,j}
+      \;=\;
+      \Sigma_{i,j}\,\mathcal{C}^{(3)}_{i,i,i}.
+    \end{equation}
+    Let $h:=\mathrm{LCA}(i,j)$, which exists because $\rho_{i,j}\ne 0$ implies
+    a trek connects $i$ and $j$.  Set $\alpha:=\lambda^{P(h,i)}$ and
+    $\delta:=\lambda^{P(h,j)}$ for the path monomials from $h$ to $i$ and $j$,
+    respectively.  By the trek rule,
     \[
-      \gamma(u,v)
-      =
-      \frac{\mathcal{C}^{(3)}_{u,v,v}\,\Sigma_{u,u}}{\mathcal{C}^{(3)}_{u,u,v}\,\Sigma_{u,v}},
+      \Sigma_{i,j}=\alpha\delta\,\Sigma_{h,h},
+      \qquad
+      \mathcal{C}^{(3)}_{i,i,j}=\alpha^{2}\delta\,\mathcal{C}^{(3)}_{h}.
     \]
-    where $\Sigma$ is the covariance matrix and $\mathcal{C}^{(3)}$ is the third-order cumulant tensor. We now express each entry in this ratio using the simple trek rule (Corollary~\ref{cor:simple-trek-rule}).
-    
-    \begin{enumerate}
-      \item Because $v_i$ is the lowest common ancestor of $v_j$ and $v_k$, every simple trek from $v_j$ to $v_k$ factors through $v_i$. The simple trek rule implies
-      \[
-        \mathcal{C}^{(3)}_{j,j,k}
-        =
-        \bigl(\lambda^{P(i,j)}\bigr)^2\,\lambda^{P(i,k)}\,\mathcal{C}^{(3)}_{i},\qquad
-        \Sigma_{j,k}
-        =
-        \lambda^{P(i,j)}\,\lambda^{P(i,k)}\,\Sigma_{i},
-      \]
-      where $\lambda^{P(a,b)}$ denotes the product of structural coefficients along the unique directed path $P(a,b)$ in the polytree, and $\mathcal{C}^{(3)}_{i}$, $\Sigma_i$ are the third-order cumulant and variance of $X_{v_i}$, respectively.
-    
-      \item Similarly,
-      \[
-        \mathcal{C}^{(3)}_{j,k,k}
-        =
-        \lambda^{P(i,j)}\,\bigl(\lambda^{P(i,k)}\bigr)^2\,\mathcal{C}^{(3)}_{i},\qquad
-        \Sigma_{j,j}
-        =
-        \,\bigl(\lambda^{P(i,j)}\bigr)^2\,\Sigma_{i}.
-      \]
-    \end{enumerate}
-    
-    Substituting these identities into the definition of $\gamma$ gives
+    Substituting into \eqref{eq:axiom1_converse} and dividing by
+    $\alpha\delta\ne 0$ yields
+    \begin{equation}\label{eq:axiom1_reduced}
+      \Sigma_{i,i}\cdot\alpha\cdot\mathcal{C}^{(3)}_{h}
+      \;=\;
+      \Sigma_{h,h}\cdot\mathcal{C}^{(3)}_{i,i,i}.
+    \end{equation}
+    We now decompose the diagonal quantities by partitioning the ancestors of $i$
+    into those that pass through $h$ (i.e.\ $\{h\}\cup\mathrm{an}(h)$) and the
+    remaining nodes that lie strictly on the directed path from $h$ to $i$
+    (denoted $\mathcal{P}_{h\to i}^{*}$, which is empty when $h=i$).
+    For any source $s\in\{h\}\cup\mathrm{an}(h)$, the path to $i$ factors as
+    $\lambda^{P(s,i)}=\lambda^{P(s,h)}\cdot\alpha$, so the Multi-Trek Rule (Proposition~\ref{prop:multi:trek}), 
+    applied to the diagonal entries of $X_i$, gives
     \begin{align*}
-      \gamma(j,k)
-      &= \frac{\mathcal{C}^{(3)}_{j,k,k}}{\mathcal{C}^{(3)}_{j,j,k}}
-         \cdot\frac{\Sigma_{j,j}}{\Sigma_{j,k}}  \\[1ex]
-      &=
-      \frac{
-        \bigl[\lambda^{P(i,j)}\,(\lambda^{P(i,k)})^2\,\mathcal{C}^{(3)}_{i}\bigr]
-        \cdot
-        \bigl[\bigl(\lambda^{P(i,j)}\bigr)^2\,\Sigma_{i}\bigr]
-      }{
-        \bigl[\bigl(\lambda^{P(i,j)}\bigr)^2\,\lambda^{P(i,k)}\,\mathcal{C}^{(3)}_{i}\bigr]
-        \cdot
-        \bigl[\lambda^{P(i,j)}\,\lambda^{P(i,k)}\,\Sigma_{i}\bigr]
-      } \\[1ex]
-      &= 1.
+      \Sigma_{i,i} &= \alpha^2 \Sigma_{h,h} + \Delta_2, \quad
+      \mathcal{C}^{(3)}_{i,i,i} &= \alpha^3 \mathcal{C}^{(3)}_h + \Delta_3,
     \end{align*}
-    
-    An identical computation replacing $v_k$ by $v_\ell$ yields
+    where
     \[
-      \gamma(j,\ell)
-      = 1.
+      \Delta_{2}
+      :=\sum_{s\,\in\,\mathcal{P}_{h\to i}^{*}}
+        \bigl(\lambda^{P(s,i)}\bigr)^{2}\omega_{s}^{2},
+      \qquad
+      \Delta_{3}
+      :=\sum_{s\,\in\,\mathcal{P}_{h\to i}^{*}}
+        \bigl(\lambda^{P(s,i)}\bigr)^{3}\kappa_{s},
     \]
-    
-    This completes the verification of Axiom~(2).
+    collect the contributions from nodes strictly between $h$ and $i$.
+    Note that $\Delta_{2}=\Delta_{3}=0$ if and only if $h=i$ (empty path).
+    Substituting into \eqref{eq:axiom1_reduced} and cancelling the common
+    term $\alpha^{3}\Sigma_{h,h}\mathcal{C}^{(3)}_{h}$ gives
+    \begin{equation}\label{eq:axiom1_key}
+      \alpha\,\Delta_{2}\,\mathcal{C}^{(3)}_{h}
+      \;=\;
+      \Sigma_{h,h}\,\Delta_{3}.
+    \end{equation}
+    If $h=i$, then $\Delta_{2}=\Delta_{3}=0$ and \eqref{eq:axiom1_key} holds
+    trivially ($0=0$); in this case $i=\mathrm{LCA}(i,j)$, meaning $i$ is an
+    ancestor of $j$, as required.
+    If $h\ne i$, then $\Delta_{2}>0$ (at minimum the term $\omega_{i}^{2}$ from
+    node $i$ itself), and \eqref{eq:axiom1_key} becomes a non-trivial polynomial
+    equation of degree $\geq 3$ relating the edge weights and noise moments.
+    Such an equation holds only on a measure-zero algebraic subset of the
+    parameter space: to see this, note that varying $\kappa_i$ (the noise 
+    third cumulant at $i$) leaves the left side unchanged (since $i \notin A_h$) 
+    but shifts the right side linearly via the term $\Sigma_{h,h}\,\kappa_i$, 
+    so the equation can hold for at most one value of $\kappa_i$.
+    Hence for \emph{generic} structural parameters it fails.
+
+  \item Let $v_i$ be the lowest common ancestor of two observed variables $v_j$
+and $v_k$, and also the lowest common ancestor of $v_j$ and $v_\ell$.
+We will show that $\gamma(j,k) = \gamma(j,\ell)$.
+
+By Definition~\ref{def:discrepancy}, for distinct observed vertices $u,v$
+with $\rho_{u,v}\neq 0$ one has
+\[
+  \gamma(u,v)
+  = \frac{\mathcal{C}^{(3)}_{u,v,v}\,\Sigma_{u,u}}
+         {\mathcal{C}^{(3)}_{u,u,v}\,\Sigma_{u,v}}.
+\]
+We apply the Simple Multi-Trek Rule (Corollary~\ref{cor:simple-trek-rule})
+to the \emph{mixed} cumulant and covariance entries.  Because
+$v_i = \operatorname{LCA}(v_j, v_k)$, the unique simple $3$-trek from
+$(j,j,k)$ has top $i$: the two paths from $i$ to $j$ are identical (there
+is a unique directed path in a polytree), but the path from $i$ to $k$
+diverges from the path to $j$ immediately after $i$, so their common
+intersection is exactly $\{i\}$, making the trek simple.  Likewise for
+the simple 2-trek from $(j,k)$.  This yields
+\begin{align*}
+  \mathcal{C}^{(3)}_{j,j,k}
+    &= \bigl(\lambda^{P(i,j)}\bigr)^2\,\lambda^{P(i,k)}\,\mathcal{C}^{(3)}_{i},
+  \\
+  \mathcal{C}^{(3)}_{j,k,k}
+    &= \lambda^{P(i,j)}\,\bigl(\lambda^{P(i,k)}\bigr)^2\,\mathcal{C}^{(3)}_{i},
+  \\
+  \Sigma_{j,k}
+    &= \lambda^{P(i,j)}\,\lambda^{P(i,k)}\,\Sigma_{i,i},
+\end{align*}
+where $\lambda^{P(a,b)}$ denotes the product of structural coefficients
+along the unique directed path from $a$ to $b$, and
+$\mathcal{C}^{(3)}_i$, $\Sigma_{i,i}$ are the third-order cumulant and
+variance of $X_{v_i}$, respectively.
+
+\begin{remark*}
+We do \emph{not} apply the simple trek rule to the diagonal entry
+$\Sigma_{j,j}$.  For a simple 2-trek from top $t\neq j$ to $(j,j)$, both
+paths must be the unique directed path from $t$ to $j$; their intersection
+then contains every node on that path, not just $t$, so no such simple trek
+exists in a polytree.  Consequently $\Sigma_{j,j}$ is treated as a fixed
+positive quantity in what follows.
+\end{remark*}
+
+Substituting the three identities above into the definition of $\gamma$
+gives
+\begin{align*}
+  \gamma(j,k)
+  &= \frac{\mathcal{C}^{(3)}_{j,k,k}\;\Sigma_{j,j}}
+          {\mathcal{C}^{(3)}_{j,j,k}\;\Sigma_{j,k}}
+  \\[6pt]
+  &= \frac{\bigl[\lambda^{P(i,j)}\,\bigl(\lambda^{P(i,k)}\bigr)^2
+            \mathcal{C}^{(3)}_i\bigr]\;\Sigma_{j,j}}
+          {\bigl[\bigl(\lambda^{P(i,j)}\bigr)^2\,\lambda^{P(i,k)}
+            \mathcal{C}^{(3)}_i\bigr]
+           \bigl[\lambda^{P(i,j)}\,\lambda^{P(i,k)}\,\Sigma_{i,i}\bigr]}
+  \\[6pt]
+  &= \frac{\lambda^{P(i,j)}\,\bigl(\lambda^{P(i,k)}\bigr)^2\,
+           \mathcal{C}^{(3)}_i\;\Sigma_{j,j}}
+          {\bigl(\lambda^{P(i,j)}\bigr)^3\,\bigl(\lambda^{P(i,k)}\bigr)^2\,
+           \mathcal{C}^{(3)}_i\,\Sigma_{i,i}}
+  \\[6pt]
+  &= \frac{\Sigma_{j,j}}
+          {\bigl(\lambda^{P(i,j)}\bigr)^2\,\Sigma_{i,i}}.
+\end{align*}
+
+An identical computation replacing $v_k$ by $v_\ell$ (with
+$\operatorname{LCA}(v_j,v_\ell)=v_i$ by assumption) yields
+\[
+  \gamma(j,\ell)
+  = \frac{\Sigma_{j,j}}
+         {\bigl(\lambda^{P(i,j)}\bigr)^2\,\Sigma_{i,i}},
+\]
+where the right-hand side depends only on the first argument $j$ and on
+the shared LCA $i$, not on the second argument.  Hence
+\[
+  \gamma(j,k) = \gamma(j,\ell),
+\]
+completing the verification of Axiom~(2).
 
   \item Suppose $d:=\mathrm{LCA}(i,j)$ lies strictly below $c:=\mathrm{LCA}(i,k)$ on the unique path from \(c\) to \(i\).  Write \(\lambda^{P(u,v)}\) for the product of structural coefficients on the directed path \(P(u,v)\) in the polytree.  Using the simple–trek rule again, we obtain the following identities:
   \[
@@ -623,23 +746,47 @@ We verify that the cumulant discrepancy measure $\gamma: O \times O \to \mathbb{
     =
     \frac{\bigl(\lambda^{P(c,i)}\bigr)^{2}\,\Sigma_{c,c}}{\bigl(\lambda^{P(d,i)}\bigr)^{2}\,\Sigma_{d,d}}.
   \]
-  Because \(c\) is an ancestor of \(d\), the path from \(c\) to \(i\) factors through \(d\).  Hence 
-  \(\lambda^{P(c,i)}=\lambda_{c,d}\,\lambda^{P(d,i)}\) and
-  \(\bigl(\lambda^{P(c,i)}\bigr)^{2}=\lambda_{c,d}^{2}\,\bigl(\lambda^{P(d,i)}\bigr)^{2}\).  Substituting yields
+      Because $c$ is an ancestor of $d$, the path from $c$ to $i$ factors through $d$.
+  Hence $\lambda^{P(c,i)}=\lambda^{P(c,d)}\,\lambda^{P(d,i)}$ and
+  $\bigl(\lambda^{P(c,i)}\bigr)^{2}
+   =\bigl(\lambda^{P(c,d)}\bigr)^{2}\bigl(\lambda^{P(d,i)}\bigr)^{2}$.
+  Substituting yields
   \[
     \frac{\gamma(i,j)}{\gamma(i,k)}
     =
-    \frac{\lambda_{c,d}^{2}\,\Sigma_{c,c}}{\Sigma_{d,d}}.
+    \frac{\bigl(\lambda^{P(c,d)}\bigr)^{2}\,\Sigma_{c,c}}{\Sigma_{d,d}}.
   \]
-  Finally, using the Corollary~\ref{cor:simple_trek_2} and that in a polytree there can be at most one simple trek between $c$ and $d$, we have that
-  \(\Sigma_{d,d}=\lambda_{c,d}^{2}\,\Sigma_{c,c}+\omega_{d}^{2}\), where \(\omega_{d}^{2}=\var(\varepsilon_{d})>0\) is the variance of the disturbance at \(d\).  Consequently,
+  It remains to show $\bigl(\lambda^{P(c,d)}\bigr)^{2}\Sigma_{c,c} < \Sigma_{d,d}$.
+  Since the underlying undirected graph of the polytree is a tree, every non-root
+  node has exactly one parent.  Corollary~\ref{cor:simple_trek_2} with $k=2$
+  therefore gives the exact single-parent recursion
+  \[
+    \Sigma_{n,n} = \lambda_{\mathrm{pa}(n),n}^{2}\,\Sigma_{\mathrm{pa}(n),\mathrm{pa}(n)}
+                  + \omega_{n}^{2}
+    \qquad\text{for every non-root node }n.
+  \]
+  Let $c=n_{0}\to n_{1}\to\cdots\to n_{m}=d$ be the unique directed path from
+  $c$ to $d$.  Applying the recursion $m$ times along this path gives
+  \[
+    \Sigma_{d,d}
+    \;=\;
+    \bigl(\lambda^{P(c,d)}\bigr)^{2}\Sigma_{c,c}
+    \;+\;
+    \sum_{\ell=1}^{m}
+      \bigl(\lambda^{P(n_{\ell},d)}\bigr)^{2}\,\omega_{n_{\ell}}^{2},
+  \]
+  where $\lambda^{P(n_{\ell},d)}$ is the path monomial from $n_{\ell}$ to $d=n_{m}$.
+  The term $\ell=m$ contributes $\bigl(\lambda^{P(d,d)}\bigr)^{2}\omega_{d}^{2}
+  =\omega_{d}^{2}>0$, so the entire sum is strictly positive.  Consequently,
+  $\Sigma_{d,d}>\bigl(\lambda^{P(c,d)}\bigr)^{2}\Sigma_{c,c}$, and therefore
   \[
     \frac{\gamma(i,j)}{\gamma(i,k)}
     =
-    \frac{\lambda_{c,d}^{2}\,\Sigma_{c,c}}{\lambda_{c,d}^{2}\,\Sigma_{c,c}+\omega_{d}^{2}}
+    \frac{\bigl(\lambda^{P(c,d)}\bigr)^{2}\,\Sigma_{c,c}}{\Sigma_{d,d}}
     < 1,
   \]
-  proving that \(\gamma(i,j)<\gamma(i,k)\) whenever \(\mathrm{LCA}(i,j)\) is strictly below \(\mathrm{LCA}(i,k)\).
+  proving that $\gamma(i,j)<\gamma(i,k)$ whenever $\mathrm{LCA}(i,j)$ is
+  strictly below $\mathrm{LCA}(i,k)$ on the path from $\mathrm{LCA}(i,k)$ to $i$.
 
   \item 
   If $i$ and $j$ have no common ancestor, then there exists no trek between them. Hence from Lemma~\ref{lem:wright} we have $\rho_{i,j} = 0$, and thus $\gamma(i,j) = -1 < 0$.
@@ -773,7 +920,7 @@ A \emph{tree merger} is an operator that takes two directed trees $\vec{T}_1$, $
 \vec{T}_1 \circ \vec{T}_2 \big|_{\vec{T}_3}.
 \]
 \end{definition}
-Figure~\ref{fig:tree_merger} demontrates one such tree merger.
+Figure~\ref{fig:tree_merger} demonstrates one such tree merger.
 
 \begin{figure}[ht]
 \centering
@@ -1084,7 +1231,14 @@ Our experiments in this section operate in the \textbf{population regime}, exami
 \item \textbf{Graph sizes}: $n \in \{30, 50, 100, 150, 200, 250, 300\}$ total nodes for systematic analysis, with large-scale validation extending to $n = 1500$
 \item \textbf{Edge weights}: $\lambda_{ij} \sim \text{Uniform}[-1,1]$ subject to minimum threshold constraint $|\lambda_{ij}| \geq \eta$, where $\eta \in \{0.1, 0.3, 0.5, 0.8\}$
 \item \textbf{Noise parameters}: Unit variance ($\sigma_i^2 = 1$) and unit third-order cumulants ($\kappa_i = 1$) for all nodes
-\item \textbf{Latent identification}: Nodes with out-degree $\geq 2$ are designated as latent variables. For the population experiments, we designate \emph{all} candidate nodes (those with out-degree $\geq 2$) as latent, thereby creating the maximal latent configuration. This choice represents the most challenging scenario for structure recovery, as it maximizes the proportion of hidden variables while maintaining the minimality constraint. The theoretical upper bound for latent nodes in a minimal latent polytree with $n$ total nodes is approximately $\lfloor (n-1)/2 \rfloor$, derived from the requirement that each latent node must have at least two children and the tree must remain connected. Our maximal latent configuration therefore provides a conservative assessment of algorithmic performance under the most demanding structural conditions.
+\item \textbf{Latent identification}: Nodes with out-degree $\geq 2$ are
+designated as latent variables.  For the population experiments, we designate
+\emph{all} candidate nodes (those with out-degree $\geq 2$) as latent, thereby
+creating the maximal latent configuration --- the most demanding scenario
+consistent with the minimality condition of Definition~\ref{def:minimal_polytree}.
+The finite-sample experiments of Section~\ref{subsec:finite_sample} adopt
+the opposite extreme ($k = 1$ latent node) to separately characterise
+statistical estimation difficulty; see the discussion there.
 \end{itemize}
 
 This configuration enables systematic investigation of the relationship between edge weight magnitudes and algorithmic performance, which forms the core contribution of our experimental analysis.
@@ -1219,7 +1373,12 @@ Nodes ($n$) & Edge Threshold ($\eta$) & F1-Score & Runtime (seconds) \\
 \label{tab:large_scale}
 \end{table}
 
-These results represent the largest successful latent polytree structure learning experiments reported in the literature to date. The perfect F1 scores confirm that the method maintains theoretical guarantees even at scales orders of magnitude larger than previous demonstrations.
+To the best of our knowledge, these are among the largest successful
+latent polytree structure learning experiments reported in the literature.
+For comparison, \citet{etesami:kiyavash:coleman:2016} demonstrate recovery
+on synthetic graphs with up to tens of nodes, and \citet{tramontano:monod:drton:2022}
+evaluate on fully observed polytrees of comparable scale; our population-level
+experiments extend to $n=1500$ nodes under the latent setting.
 
 \paragraph{Runtime characteristics.} The computational complexity is dominated by the separation phase, which has worst-case complexity $O(p^3)$ due to the iterative candidate expansion that checks all pairwise discrepancy conditions. The tree recovery phase operates in $O(p^2)$ time, examining discrepancy values to construct the tree structure. The merger phase, which combines recovered trees through latent node insertion, also has worst-case complexity $O(p^2)$ for star-like structures but typically exhibits better performance on balanced polytrees. Overall, the method scales polynomially with the number of nodes, making it practically feasible for large-scale applications. For $n = 1500$ nodes, the total runtime of approximately 63 minutes demonstrates practical feasibility for large-scale structure learning.
 
@@ -1232,44 +1391,18 @@ These results represent the largest successful latent polytree structure learnin
 
 The dramatic contrast between failure at $n \approx 100$ under weak thresholds and perfect recovery at $n = 1500$ under strong thresholds conclusively demonstrates that numerical conditioning, rather than algorithmic limitations, has been the primary scalability barrier.
 
-\subsubsection{Practical Guidelines}
-
-These findings establish concrete guidelines for practitioners applying cumulant-based polytree learning:
-
-\begin{enumerate}[label=(\arabic*)]
-\item \textbf{Edge weight regularization}: In real applications, estimated structural coefficients below $|\lambda_{ij}| < 0.5$ should be subject to regularization or robust estimation techniques.
-
-\item \textbf{Condition number monitoring}: Discrepancy matrix condition numbers provide early warning signals for numerical instability. Condition numbers exceeding $10^{12}$ indicate potential breakdown.
-
-\item \textbf{Scale-appropriate thresholds}: For large-scale applications ($n > 100$), minimum edge weight thresholds should be set to $\eta \geq 0.5$ to ensure stable performance.
-\end{enumerate}
-
-\paragraph{Theoretical implications.} The threshold phenomenon reveals an important gap between theoretical identifiability guarantees and computational implementation. While our cumulant discrepancy measure is mathematically well-defined for any non-zero edge weights, practical computation requires careful attention to numerical conditioning that is not captured in existing theoretical frameworks.
+\paragraph{Practical implications.}
+These findings translate into three concrete guidelines for practitioners:
+(1)~edge weights below $|\lambda_{ij}|<0.5$ should be subject to regularisation;
+(2)~discrepancy matrix condition numbers exceeding $10^{12}$ signal potential
+breakdown; and (3)~for large-scale applications ($n>100$), minimum edge weight
+thresholds should satisfy $\eta\geq0.5$.
 
 \subsubsection{Comparison with Related Work}
 
 This work provides the first systematic documentation of numerical conditioning effects in discrepancy-based latent polytree learning. Previous theoretical analyses \citep{etesami:kiyavash:coleman:2016} focus on asymptotic consistency without addressing finite-precision arithmetic constraints. Our empirical findings complement theoretical guarantees by establishing practical parameter ranges for reliable computation.
 
 The threshold phenomenon also connects to broader numerical stability issues in higher-order moment estimation \citep{comon:jutten:handbook}, where small denominators in ratio-based statistics can lead to computational breakdown. However, the specific manifestation in polytree structure learning—where performance remains excellent under appropriate parameterization—has not been previously characterized.
-
-\subsubsection{Novel Methodological Contribution}
-
-The discovery of the critical edge weight threshold represents a novel methodological contribution with immediate practical value. The clear stratification of performance across threshold values provides actionable guidance for parameter selection, transforming a method that appeared to have limited scalability (under default weak thresholds) into an approach capable of handling large-scale problems when properly configured.
-
-The transition from failure at $n \approx 100$ under weak thresholds to excellent performance at $n = 1500$ under strong thresholds demonstrates that numerical conditioning, rather than algorithmic limitations, has been the primary barrier to large-scale latent polytree learning with cumulant-based methods.
-
-\subsubsection{Future Research Directions}
-
-The threshold phenomenon opens several avenues for future investigation:
-
-\begin{itemize}
-\item \textbf{Adaptive thresholds}: Development of data-driven threshold selection methods based on condition number monitoring
-\item \textbf{Regularization techniques}: Investigation of alternative regularization approaches for handling near-zero edge weights
-\item \textbf{Alternative discrepancy formulations}: Exploration of numerically stable variants of the cumulant discrepancy ratio
-\item \textbf{Finite-sample analysis}: Extension to sample-based cumulant estimation with threshold-adaptive confidence intervals
-\end{itemize}
-
-These findings establish a foundation for developing more robust cumulant-based structure learning methods that can reliably scale to large polytree systems while maintaining theoretical guarantees.
 
 \subsection{Finite-Sample Validation Experiments}
 \label{subsec:finite_sample}
@@ -1603,7 +1736,16 @@ This protocol ensures that all nodes have unit variance but distinct third-order
 
 \begin{itemize}
 \item \textbf{Polytree sizes}: $n \in \{4, 5, 6, 7, 8, 9, 10\}$ total nodes
-\item \textbf{Latent structure}: Exactly $k = 1$ latent node per polytree, randomly selected from candidate nodes with out-degree $\geq 2$. This constraint simplifies interpretation by isolating the effects of system size and observed topology on recovery difficulty, while still capturing the essential challenges of latent variable learning.
+\item \textbf{Latent structure}: Exactly $k = 1$ latent node per polytree,
+randomly selected from candidate nodes with out-degree $\geq 2$.  This
+constraint simplifies interpretation by isolating the effects of system size
+and observed topology on recovery difficulty, while still capturing the
+essential challenges of latent variable learning.  Note that this differs
+deliberately from the population experiments (Section~\ref{subsubsec:pop_experiments}),
+which designated \emph{all} eligible nodes as latent (maximal latent
+configuration): in the finite-sample regime, even a single latent node
+introduces sufficient estimation difficulty that richer latent configurations
+are left for future work.
 \item \textbf{Sample sizes}: $n_{\text{samples}} \in \{10^2, 10^3, 10^4, 10^5, 10^6, 10^7, 2 \times 10^7\}$ to characterize high-precision regime
 \item \textbf{Edge weight threshold}: $\eta = 0.8$ for strong numerical conditioning
 \item \textbf{Trials per configuration}: $N = 10$ independent replications for statistical reliability
@@ -2571,7 +2713,10 @@ The comprehensive finite-sample evaluation across three canonical polytree topol
 
 \paragraph{Scope of experimental validation.} The current evaluation focuses on:
 \begin{itemize}
-\item Single latent root configurations ($k=1$)
+\item Single latent root configurations ($k=1$) in the finite-sample
+experiments; the population-level experiments of Section~\ref{subsec:threshold_phenomenon}
+used the maximal latent configuration (all eligible nodes hidden), but this
+has not yet been studied under finite-sample conditions.
 \item Gamma noise distributions with unit variance
 \item Strong edge weights ($|\lambda_{ij}| \geq 0.8$)
 \item Pure topologies (chains, balanced, stars)
