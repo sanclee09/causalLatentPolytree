@@ -10,21 +10,64 @@
 \documentclass[11pt,a4paper]{article}
 
 %%%%%% Packages %%%%%%
+% Layout
+\usepackage[
+  margin=1in,
+  includefoot,
+  footskip=30pt,
+  a4paper,
+]{geometry}
+\usepackage{pdfpages}
+\usepackage{parskip}
+
+% Language & encoding
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage{natbib}
-    \bibliographystyle{plainnat}
+\usepackage[english]{babel}
 \usepackage{lmodern}
-\usepackage{geometry}
-  \geometry{margin=3cm}
+
+% Spacing
 \usepackage{setspace}
   \onehalfspacing
+
+% Math
 \usepackage{amsmath,amssymb,amsfonts,amsthm}
 \usepackage{bm}
-\usepackage{graphicx}
-\usepackage{hyperref}
 \usepackage{multirow}
+
+% Bibliography
+\usepackage{natbib}
+    \bibliographystyle{plainnat}
+
+% References (order matters: hyperref → cleveref → autonum)
+\usepackage[hypertexnames=false]{hyperref}
   \hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+\usepackage{cleveref}
+\usepackage{autonum}
+
+% Figures
+\usepackage{graphicx}
+\usepackage[labelfont=bf]{caption}
+
+% Header / footer
+\usepackage{fancyhdr}
+\fancyhead{}
+\fancyhead[C]{\nouppercase{\leftmark}}
+\setlength{\headheight}{20pt}
+\setlength{\headsep}{0.3in}
+\renewcommand\headrulewidth{0pt}
+
+% TUM corporate colors
+\usepackage{xcolor}
+\definecolor{TUMBlue}        {RGB}{  0,101,189}
+\definecolor{TUMBlueDark}    {RGB}{  0, 82,147}
+\definecolor{TUMBlueDarker}  {RGB}{  0, 51, 89}
+\definecolor{TUMGrayDark}    {RGB}{ 88, 88, 90}
+\definecolor{TUMGray}        {RGB}{156,157,159}
+\definecolor{TUMGrayLight}   {RGB}{217,218,219}
+\definecolor{TUMGreen}       {RGB}{162,173,  0}
+\definecolor{TUMOrange}      {RGB}{227,114, 34}
+\definecolor{TUMBlueLight}   {RGB}{100,160,200}
 \usepackage{enumitem}
 \usepackage{mathtools}
 \usepackage{tikz}
@@ -75,15 +118,23 @@
 
 \begin{document}
 
-\maketitle
+% --------------- Title page ---------------
+\input{Title_page/classic_title_page}
 
-\begin{abstract}
-This thesis studies linear, non-Gaussian, acyclic models (LiNGAM) whose underlying directed graph is a \emph{minimal latent polytree}. Building on moment identities from the LiNGAM literature, we propose a novel discrepancy matrix based on second and third order cumulants of the observed variables. We adapt the algorithm proposed by Etesami et al. to the LiNGAM setting, enabling recovery at the population level with provable guarantees for
-generic structural parameters, and demonstrating empirical consistency in
-finite-sample settings.
-\end{abstract}
+% --------------- Front matter ---------------
+\pagenumbering{roman}
+\setcounter{page}{2}
+
+\include{Front_matter/Declaration}
+
+\include{Front_matter/Abstract}
+
+\include{Front_matter/Acknowledgements}
 
 \tableofcontents
+
+% --------------- Main content ---------------
+\pagestyle{fancy}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
