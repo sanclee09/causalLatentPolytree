@@ -12,7 +12,7 @@
 %%%%%% Packages %%%%%%
 % Layout
 \usepackage[
-  margin=1in,
+  margin=3cm,
   includefoot,
   footskip=30pt,
   a4paper,
@@ -39,11 +39,9 @@
 \usepackage{natbib}
     \bibliographystyle{plainnat}
 
-% References (order matters: hyperref → cleveref → autonum)
+% References
 \usepackage[hypertexnames=false]{hyperref}
   \hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
-\usepackage{cleveref}
-\usepackage{autonum}
 
 % Figures
 \usepackage{graphicx}
@@ -93,6 +91,7 @@
 \newtheorem{lemma}[theorem]{Lemma}
 \newtheorem{remark}[theorem]{Remark}
 \newtheorem{corollary}[theorem]{Corollary}
+\newtheorem*{remark*}{Remark}
 
 \DeclareMathOperator{\pa}{pa}
 \DeclareMathOperator{\ch}{ch}
@@ -135,6 +134,7 @@
 
 % --------------- Main content ---------------
 \pagestyle{fancy}
+\pagenumbering{arabic}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
