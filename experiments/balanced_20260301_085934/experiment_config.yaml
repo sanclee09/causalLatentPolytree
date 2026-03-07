@@ -1,0 +1,38 @@
+# ============================================================
+# Finite-Sample Evaluation — Experiment Configuration
+# ============================================================
+# Run a topology with:
+#   python run_experiment.py chain
+#   python run_experiment.py balanced
+#   python run_experiment.py star
+#
+# Each run creates:
+#   experiments/<topology>_<YYYYMMDD_HHMMSS>/
+#     config_snapshot.yaml   — copy of this file at run time
+#     run.log                — full console output
+#     <topology>_topology_results.csv
+#     <topology>_polytree_analysis.pdf
+#     <topology>_polytree_analysis.png
+
+topologies:
+
+  chain:
+    n_nodes:      [6, 8, 10, 20, 30]
+    n_latent:     1
+    n_trials:     10
+    base_seed:    42
+    sample_sizes: [100, 1000, 10000, 100000, 1000000, 10000000, 20000000]
+
+  balanced:
+    n_nodes:      [6, 8, 10]
+    n_latent:     1
+    n_trials:     10
+    base_seed:    42
+    sample_sizes: [100, 1000, 10000, 100000, 1000000, 10000000, 20000000]
+
+  star:
+    n_nodes:      [6, 8, 10]
+    n_latent:     1
+    n_trials:     10
+    base_seed:    42
+    sample_sizes: [100, 1000, 10000, 100000, 1000000, 10000000, 20000000]

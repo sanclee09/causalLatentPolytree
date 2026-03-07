@@ -138,18 +138,25 @@ def tree(
     idx_of: Dict[int, int] = {node_v: i for i, node_v in enumerate(nodes)}
     B: Dict[int, Set[int]] = {}
 
-    # Build B_v : line 4 of ALgorithm 2
+    # Build B_v : line 4 of Algorithm 2
+    # Use a row-relative tolerance so that near-ties (e.g. in star structures
+    # where all off-diagonal entries should be equal but differ by ~O(n^{-1/2})
+    # estimation noise) are treated as simultaneous minima.  The relative
+    # factor 0.05 tolerates errors up to 5% of the row-minimum magnitude,
+    # which is well above finite-sample discrepancy errors (~0.01) yet small
+    # enough not to collapse distinct structural levels.
     for node_v in nodes:
         v_index = idx_of[node_v]
         discrepancies_of_v_th_row = [
             gamma[v_index, idx_of[node_u]] for node_u in nodes if node_u != node_v
         ]
         min_discrepancy_of_v_th_row = min(discrepancies_of_v_th_row)
+        row_tol = max(EPS, 0.05 * abs(min_discrepancy_of_v_th_row))
         B[node_v] = {
             node_u
             for node_u in nodes
             if node_u != node_v
-            and gamma[v_index, idx_of[node_u]] <= min_discrepancy_of_v_th_row + EPS
+            and gamma[v_index, idx_of[node_u]] <= min_discrepancy_of_v_th_row + row_tol
         }
 
     # Star case

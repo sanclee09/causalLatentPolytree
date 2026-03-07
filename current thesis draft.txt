@@ -78,7 +78,9 @@
 \maketitle
 
 \begin{abstract}
-This thesis studies linear, non-Gaussian, acyclic models (LiNGAM) whose underlying directed graph is a \emph{minimal latent polytree}. Building on moment identities from the LiNGAM literature, we propose a novel discrepancy matrix based on second and third order cumulants of the observed variables. We adapt the algorithm proposed by Etesami et al. to the LiNGAM setting, enabling recovery at the population level with provable guarantees, and demonstrating empirical consistency in finite-sample settings.
+This thesis studies linear, non-Gaussian, acyclic models (LiNGAM) whose underlying directed graph is a \emph{minimal latent polytree}. Building on moment identities from the LiNGAM literature, we propose a novel discrepancy matrix based on second and third order cumulants of the observed variables. We adapt the algorithm proposed by Etesami et al. to the LiNGAM setting, enabling recovery at the population level with provable guarantees for
+generic structural parameters, and demonstrating empirical consistency in
+finite-sample settings.
 \end{abstract}
 
 \tableofcontents
@@ -109,7 +111,10 @@ The theoretical foundation for our approach builds on the axiomatic framework of
 \paragraph{Contributions.} The main contributions are:
 \begin{enumerate}[label=(C\arabic*)]
   \item Definition of the \emph{Latent--LiNGAM Polytree Model} (Section~\ref{sec:model}), combining non--Gaussian noise with minimal latent structures.
-  \item Construction of a \emph{cumulant discrepancy matrix} (Section~\ref{sec:discrepancy}) and proof that it satisfies the axioms of \citet{etesami:kiyavash:coleman:2016}.
+  \item Construction of a \emph{cumulant discrepancy matrix}
+  (Section~\ref{sec:discrepancy}) and proof that it satisfies the axioms of
+  \citet{etesami:kiyavash:coleman:2016} for generic structural parameters
+  (Definition~\ref{def:generic}).
   \item Adaptation of the Separation--Tree--Merger algorithm to the new discrepancy and consistency analysis (Section~\ref{sec:algorithm}).
   \item Empirical study evaluating orientation accuracy and sample complexity under varying latent proportions (Section~\ref{sec:experiments}).
 \end{enumerate}
@@ -521,6 +526,48 @@ assigns probability one to the generic set, this condition is satisfied
 with probability one under any continuous random parameter model.
 \end{definition}
 
+\begin{remark}\label{rem:generic}
+We unpack the terminology in Definition~\ref{def:generic}.
+
+\medskip\noindent
+\textbf{Non-trivial polynomial identity.}
+A polynomial $p(\Lambda,\sigma^{2},\kappa)$ is \emph{non-trivial} if it is
+not the zero polynomial, i.e.\ it does not vanish for \emph{every} choice
+of parameters.  The equation $p=0$ then imposes a genuine algebraic
+constraint.  As a concrete instance, the equation arising in the proof of
+Axiom~1 (equation~\eqref{eq:axiom1_key}) is non-trivial because it is
+linear and non-constant in the noise third cumulant $\kappa_i$: it can
+hold for at most one value of $\kappa_i$, not for all values.
+
+\medskip\noindent
+\textbf{Algebraic hypersurface.}
+An \emph{algebraic hypersurface} in $\mathbb{R}^{n}$ is the zero set
+\[
+  \mathcal{V}(p) := \{x \in \mathbb{R}^{n} : p(x) = 0\}
+\]
+of a single non-trivial polynomial $p$.  Because $p$ is a real-analytic
+function that is nonzero on some open set, $\mathcal{V}(p)$ has Lebesgue
+measure zero in $\mathbb{R}^n$ (by the analytic implicit function theorem).
+A \emph{proper} hypersurface is one that is a strict subset of the
+ambient space, i.e.\ $\mathcal{V}(p) \subsetneq \mathbb{R}^{n}$.
+Geometrically, a hypersurface is a ``thin'' codimension-one surface: it
+has one fewer dimension than the ambient space and cannot contain any
+open set.
+
+\medskip\noindent
+\textbf{Why the generic set has full measure.}
+A finite union of measure-zero sets has measure zero, so the
+\emph{non-generic} parameters---forming a finite union of proper algebraic
+hypersurfaces---occupy a set of Lebesgue measure zero.  The complementary
+\emph{generic} set therefore has full measure.  In particular, if the
+parameters $(\Lambda,\sigma^{2},\kappa)$ are drawn from any absolutely
+continuous distribution (e.g.\ uniform on a bounded domain), the drawn
+configuration is generic with probability one.  Non-generic configurations
+correspond to exact algebraic coincidences among structural coefficients
+and noise cumulants that would be destroyed by an arbitrarily small
+perturbation.
+\end{remark}
+
 \begin{proposition}[Axioms]\label{prop:axioms}
 For generic structural parameters 
 (Definition~\ref{def:generic}), the map 
@@ -547,73 +594,160 @@ We verify that the cumulant discrepancy measure $\gamma: O \times O \to \mathbb{
      =\lambda^{S}\Sigma_{i,i}\mathcal{C}^{(3)}_{i}-\lambda^{S}\Sigma_{i,i}\mathcal{C}^{(3)}_{i}=0$,
     so $\gamma(i,j)=0$.
 
-    $(\Leftarrow)$
-    Conversely, suppose $\gamma(i,j)=0$ with $i\ne j$ and $\rho_{i,j}\ne 0$.
-    Since $\rho_{i,j}\ne 0$, the first case of Definition~\ref{def:discrepancy}
-    does not apply, so the second case gives
-    \begin{equation}\label{eq:axiom1_converse}
-      \Sigma_{i,i}\,\mathcal{C}^{(3)}_{i,i,j}
-      \;=\;
-      \Sigma_{i,j}\,\mathcal{C}^{(3)}_{i,i,i}.
-    \end{equation}
-    Let $h:=\mathrm{LCA}(i,j)$, which exists because $\rho_{i,j}\ne 0$ implies
-    a trek connects $i$ and $j$.  Set $\alpha:=\lambda^{P(h,i)}$ and
-    $\delta:=\lambda^{P(h,j)}$ for the path monomials from $h$ to $i$ and $j$,
-    respectively.  By the trek rule,
-    \[
-      \Sigma_{i,j}=\alpha\delta\,\Sigma_{h,h},
-      \qquad
-      \mathcal{C}^{(3)}_{i,i,j}=\alpha^{2}\delta\,\mathcal{C}^{(3)}_{h}.
-    \]
-    Substituting into \eqref{eq:axiom1_converse} and dividing by
-    $\alpha\delta\ne 0$ yields
-    \begin{equation}\label{eq:axiom1_reduced}
-      \Sigma_{i,i}\cdot\alpha\cdot\mathcal{C}^{(3)}_{h}
-      \;=\;
-      \Sigma_{h,h}\cdot\mathcal{C}^{(3)}_{i,i,i}.
-    \end{equation}
-    We now decompose the diagonal quantities by partitioning the ancestors of $i$
-    into those that pass through $h$ (i.e.\ $\{h\}\cup\mathrm{an}(h)$) and the
-    remaining nodes that lie strictly on the directed path from $h$ to $i$
-    (denoted $\mathcal{P}_{h\to i}^{*}$, which is empty when $h=i$).
-    For any source $s\in\{h\}\cup\mathrm{an}(h)$, the path to $i$ factors as
-    $\lambda^{P(s,i)}=\lambda^{P(s,h)}\cdot\alpha$, so the Multi-Trek Rule (Proposition~\ref{prop:multi:trek}), 
-    applied to the diagonal entries of $X_i$, gives
-    \begin{align*}
-      \Sigma_{i,i} &= \alpha^2 \Sigma_{h,h} + \Delta_2, \quad
-      \mathcal{C}^{(3)}_{i,i,i} &= \alpha^3 \mathcal{C}^{(3)}_h + \Delta_3,
-    \end{align*}
-    where
-    \[
-      \Delta_{2}
-      :=\sum_{s\,\in\,\mathcal{P}_{h\to i}^{*}}
-        \bigl(\lambda^{P(s,i)}\bigr)^{2}\omega_{s}^{2},
-      \qquad
-      \Delta_{3}
-      :=\sum_{s\,\in\,\mathcal{P}_{h\to i}^{*}}
-        \bigl(\lambda^{P(s,i)}\bigr)^{3}\kappa_{s},
-    \]
-    collect the contributions from nodes strictly between $h$ and $i$.
-    Note that $\Delta_{2}=\Delta_{3}=0$ if and only if $h=i$ (empty path).
-    Substituting into \eqref{eq:axiom1_reduced} and cancelling the common
-    term $\alpha^{3}\Sigma_{h,h}\mathcal{C}^{(3)}_{h}$ gives
-    \begin{equation}\label{eq:axiom1_key}
-      \alpha\,\Delta_{2}\,\mathcal{C}^{(3)}_{h}
-      \;=\;
-      \Sigma_{h,h}\,\Delta_{3}.
-    \end{equation}
-    If $h=i$, then $\Delta_{2}=\Delta_{3}=0$ and \eqref{eq:axiom1_key} holds
-    trivially ($0=0$); in this case $i=\mathrm{LCA}(i,j)$, meaning $i$ is an
-    ancestor of $j$, as required.
-    If $h\ne i$, then $\Delta_{2}>0$ (at minimum the term $\omega_{i}^{2}$ from
-    node $i$ itself), and \eqref{eq:axiom1_key} becomes a non-trivial polynomial
-    equation of degree $\geq 3$ relating the edge weights and noise moments.
-    Such an equation holds only on a measure-zero algebraic subset of the
-    parameter space: to see this, note that varying $\kappa_i$ (the noise 
-    third cumulant at $i$) leaves the left side unchanged (since $i \notin A_h$) 
-    but shifts the right side linearly via the term $\Sigma_{h,h}\,\kappa_i$, 
-    so the equation can hold for at most one value of $\kappa_i$.
-    Hence for \emph{generic} structural parameters it fails.
+    $(\Leftarrow)$ Suppose $\gamma(i,j) = 0$ with $i \ne j$.  If $\rho_{i,j} = 0$
+then Definition~\ref{def:discrepancy} assigns $\gamma(i,j) = -1 \ne 0$,
+a contradiction.  Hence $\rho_{i,j} \ne 0$, and the second case of
+Definition~\ref{def:discrepancy} yields
+\begin{equation}\label{eq:axiom1_converse}
+  \Sigma_{i,i}\,\mathcal{C}^{(3)}_{i,i,j}
+  \;=\;
+  \Sigma_{i,j}\,\mathcal{C}^{(3)}_{i,i,i}.
+\end{equation}
+
+\paragraph{Step 1: Reduce using the Simple Multi-Trek Rule.}
+Let $h := \operatorname{LCA}(i,j)$, which exists because $\rho_{i,j}\ne 0$
+implies a trek connects $i$ and $j$.  Set $\alpha := \lambda^{P(h,i)}$ and
+$\delta := \lambda^{P(h,j)}$ for the path monomials from $h$ to $i$ and $j$
+respectively.  Since $h = \operatorname{LCA}(i,j)$, the paths from $h$ to $i$
+and from $h$ to $j$ share only the node $h$ (they diverge immediately after
+$h$ in the polytree), so the Simple Multi-Trek Rule
+(Corollary~\ref{cor:simple-trek-rule}) gives
+\[
+  \Sigma_{i,j} = \alpha\delta\,\Sigma_{h,h},
+  \qquad
+  \mathcal{C}^{(3)}_{i,i,j} = \alpha^{2}\delta\,\mathcal{C}^{(3)}_{h},
+\]
+where $\mathcal{C}^{(3)}_{h} := \mathcal{C}^{(3)}_{h,h,h}$ is the
+third-order cumulant of $X_h$.
+Since $\rho_{i,j}\ne 0$ implies $\Sigma_{i,j}\ne 0$, and since
+$\Sigma_{h,h} = \mathrm{Var}(X_h) > 0$, the product $\alpha\delta\ne 0$,
+hence $\alpha\ne 0$ and $\delta\ne 0$.
+Substituting into~\eqref{eq:axiom1_converse} and dividing by
+$\alpha\delta \ne 0$:
+\begin{equation}\label{eq:axiom1_reduced}
+  \Sigma_{i,i}\cdot\alpha\cdot\mathcal{C}^{(3)}_{h}
+  \;=\;
+  \Sigma_{h,h}\cdot\mathcal{C}^{(3)}_{i,i,i}.
+\end{equation}
+
+\paragraph{Step 2: Decompose the diagonal quantities.}
+By the Multi-Trek Rule (Proposition~\ref{prop:multi:trek}) applied to $X_i$,
+the diagonal entries are sums over all ancestors:
+\[
+  \Sigma_{i,i}
+  = \sum_{s\,\in\,\{i\}\cup\mathrm{an}(i)}
+      \bigl(\lambda^{P(s,i)}\bigr)^{2}\sigma_{s}^{2},
+  \qquad
+  \mathcal{C}^{(3)}_{i,i,i}
+  = \sum_{s\,\in\,\{i\}\cup\mathrm{an}(i)}
+      \bigl(\lambda^{P(s,i)}\bigr)^{3}\kappa_{s},
+\]
+where $\sigma_s^2 = \mathrm{Var}(\varepsilon_s)$ and
+$\kappa_s = \varepsilon^{(3)}_s$ are the noise variance and third cumulant
+at node $s$.
+
+Partition $\{i\}\cup\mathrm{an}(i)$ into two disjoint sets:
+\begin{itemize}
+  \item $A_h := \{h\} \cup \mathrm{an}(h)$, the ancestors of $i$ that
+    pass through $h$ (including $h$ itself);
+  \item $\mathcal{P}^{*}_{h \to i}$, the nodes strictly on the directed
+    path from $h$ to $i$, \emph{excluding} $h$ but \emph{including} $i$.
+    This set is empty if and only if $h = i$.
+\end{itemize}
+
+For every $s\in A_h$, the directed path to $i$ factors through $h$:
+$\lambda^{P(s,i)} = \lambda^{P(s,h)}\cdot\alpha$.  Hence the contributions
+from $A_h$ to the two diagonal sums are exactly
+\[
+  \sum_{s\in A_h}\bigl(\lambda^{P(s,i)}\bigr)^{2}\sigma_s^2
+  = \alpha^2\underbrace{\sum_{s\in A_h}\bigl(\lambda^{P(s,h)}\bigr)^{2}
+    \sigma_s^2}_{=\,\Sigma_{h,h}},
+  \qquad
+  \sum_{s\in A_h}\bigl(\lambda^{P(s,i)}\bigr)^{3}\kappa_s
+  = \alpha^3\underbrace{\sum_{s\in A_h}\bigl(\lambda^{P(s,h)}\bigr)^{3}
+    \kappa_s}_{=\,\mathcal{C}^{(3)}_{h}},
+\]
+where the underbraced quantities equal $\Sigma_{h,h}$ and
+$\mathcal{C}^{(3)}_{h}$ by a second application of
+Proposition~\ref{prop:multi:trek} to node $h$.
+
+Define the residual terms from $\mathcal{P}^{*}_{h\to i}$:
+\[
+  \Delta_{2}
+  := \sum_{s\,\in\,\mathcal{P}^{*}_{h\to i}}
+     \bigl(\lambda^{P(s,i)}\bigr)^{2}\sigma_{s}^{2},
+  \qquad
+  \Delta_{3}
+  := \sum_{s\,\in\,\mathcal{P}^{*}_{h\to i}}
+     \bigl(\lambda^{P(s,i)}\bigr)^{3}\kappa_{s}.
+\]
+Combining, we obtain
+\begin{equation}\label{eq:diag_decomp}
+  \Sigma_{i,i} = \alpha^{2}\Sigma_{h,h} + \Delta_{2},
+  \qquad
+  \mathcal{C}^{(3)}_{i,i,i} = \alpha^{3}\mathcal{C}^{(3)}_{h} + \Delta_{3},
+\end{equation}
+with $\Delta_2 = \Delta_3 = 0$ if and only if $h = i$.
+
+\paragraph{Step 3: Derive the key equation.}
+Substituting~\eqref{eq:diag_decomp} into~\eqref{eq:axiom1_reduced}:
+\[
+  \bigl(\alpha^{2}\Sigma_{h,h}+\Delta_{2}\bigr)\cdot\alpha
+  \cdot\mathcal{C}^{(3)}_{h}
+  = \Sigma_{h,h}\cdot
+  \bigl(\alpha^{3}\mathcal{C}^{(3)}_{h}+\Delta_{3}\bigr).
+\]
+Expanding and cancelling the common term
+$\alpha^{3}\Sigma_{h,h}\mathcal{C}^{(3)}_{h}$ yields
+\begin{equation}\label{eq:axiom1_key}
+  \alpha\,\Delta_{2}\,\mathcal{C}^{(3)}_{h}
+  \;=\;
+  \Sigma_{h,h}\,\Delta_{3}.
+\end{equation}
+
+\paragraph{Step 4: Case analysis on $h$.}
+
+\textbf{Case $h = i$.}
+Then $\mathcal{P}^{*}_{h\to i} = \varnothing$, so
+$\Delta_{2} = \Delta_{3} = 0$, and~\eqref{eq:axiom1_key} holds
+trivially.  In this case $i = \operatorname{LCA}(i,j)$, which means $i$
+is an ancestor of $j$, as required.
+
+\textbf{Case $h \ne i$.}
+The path $h \to \cdots \to i$ has at least one edge, so
+$\mathcal{P}^{*}_{h\to i}$ is nonempty and contains node $i$ itself
+(as the final node on the path).  The term $s = i$ contributes
+$\bigl(\lambda^{P(i,i)}\bigr)^{2}\sigma_i^{2} = \sigma_i^{2} > 0$
+to $\Delta_2$, so $\Delta_2 > 0$.
+
+We claim~\eqref{eq:axiom1_key} defines a non-trivial polynomial
+equation in the model parameters $(\Lambda,\sigma^{2},\kappa)$, so
+that its solution set has measure zero.  To see this, fix all
+parameters except $\kappa_i$ (the noise third cumulant at node $i$)
+and observe:
+\begin{itemize}
+  \item \emph{Left side}: $\alpha\,\Delta_{2}\,\mathcal{C}^{(3)}_{h}$
+    involves only $\sigma_s^{2}$ (through $\Delta_2$) and $\kappa_t$
+    for $t \in A_h$ (through $\mathcal{C}^{(3)}_h$).  Since
+    $h \ne i$, node $i$ is a \emph{descendant} of $h$, hence
+    $i \notin A_h$.  Thus the left side is \emph{independent of}
+    $\kappa_i$.
+  \item \emph{Right side}: $\Sigma_{h,h}\,\Delta_{3}$ contains the
+    term $\Sigma_{h,h}\cdot\bigl(\lambda^{P(i,i)}\bigr)^{3}\kappa_i
+    = \Sigma_{h,h}\,\kappa_i$, so it is \emph{linear and
+    non-constant in $\kappa_i$} (since $\Sigma_{h,h} > 0$).
+\end{itemize}
+Hence the polynomial
+$\alpha\,\Delta_{2}\,\mathcal{C}^{(3)}_{h} - \Sigma_{h,h}\,\Delta_{3}$
+is not identically zero; it can vanish in $\kappa_i$ for at most one
+value.  The set of all parameter configurations satisfying this
+equation therefore has Lebesgue measure zero in the full parameter space.
+
+Under the \emph{generic parameters} assumption
+(Definition~\ref{def:generic}),
+equation~\eqref{eq:axiom1_key} cannot hold when $h\ne i$.
+This forces $h = i$, i.e.\ $\operatorname{LCA}(i,j) = i$,
+meaning $i$ is an ancestor of $j$.
 
   \item Let $v_i$ be the lowest common ancestor of two observed variables $v_j$
 and $v_k$, and also the lowest common ancestor of $v_j$ and $v_\ell$.
@@ -1082,23 +1216,29 @@ The \textsc{Tree} algorithm provides a method for constructing a directed tree f
 
 If the star graph condition is not met, the algorithm proceeds with recursive tree construction. It selects a node $w$ such that $B_w \neq O \setminus \{w\}$ and recursively constructs subtrees. The process involves substituting nodes and merging trees using the tree merger operation to ensure that the hierarchical relationships between nodes are properly captured.
 
-
 \subsection{Adaptation to Cumulant Discrepancy}
 
 In our setting, we adapt these algorithms to work with our cumulant-based
 discrepancy measure from Definition~\ref{def:discrepancy}. The key
 modification lies in verifying that our measure satisfies the four axioms of
 Definition~\ref{def:discrepancy_paper1}, which we established in
-Proposition~\ref{prop:axioms}.
+Proposition~\ref{prop:axioms} under the \emph{generic parameters} assumption
+(Definition~\ref{def:generic}).  Consequently, Theorem~\ref{thm:identifiability}
+guarantees recovery of the minimal latent polytree whenever the structural
+parameters $(\Lambda,\sigma^{2},\kappa)$ are generic---a condition that holds
+with probability one under any absolutely continuous parameter distribution.
 
 \begin{remark}[Population-level scope of Theorem~\ref{thm:identifiability}]
 \label{rem:population_scope}
 Theorem~\ref{thm:identifiability} is a \emph{population-level} guarantee: it
-asserts that exact knowledge of the discrepancy matrix $\Gamma_O$—computed
-from the true joint distribution of $(X_i)_{i\in O}$—is sufficient to recover
+asserts that exact knowledge of the discrepancy matrix $\Gamma_O$---computed
+from the true joint distribution of $(X_i)_{i\in O}$---is sufficient to recover
 the minimal latent polytree.  The result says nothing directly about the
 finite-sample regime in which $\Gamma_O$ is replaced by an estimate
-$\hat\Gamma_O$ computed from $n$ observations.
+$\hat\Gamma_O$ computed from $n$ observations.  In our setting, the validity of
+$\Gamma_O$ as a discrepancy matrix is itself contingent on generic structural
+parameters (Proposition~\ref{prop:axioms}); the theorem then applies to all
+such parameter configurations.
 \end{remark}
 
 Consistency of the full pipeline in the sample setting would follow from two
