@@ -1,8 +1,10 @@
 # PDF files
 *.pdf
+!thesis/*.pdf
 
 # Image files
 *.png
+!thesis/*.png
 
 # CSV files
 *.csv
