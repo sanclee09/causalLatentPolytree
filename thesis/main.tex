@@ -216,7 +216,7 @@ The joint distribution of $X$ satisfies the \emph{local Markov property} with re
 
 The \emph{Markov equivalence class} of $G$ is the set of all DAGs that encode the same conditional independence relations, i.e., for which the set of distributions satisfying the local Markov property is the same. The conditional independence relationships encoded by a DAG can be characterized through the concept of \emph{d-separation} \citep{pearl:causality:2009}: two sets of nodes $A$ and $B$ are d-separated by a set $C$ in $G$ if every path between $A$ and $B$ is blocked by $C$, where a path is blocked if it contains a node $v \in C$ that is not a collider on that path, or if it contains a collider $w$ such that neither $w$ nor any of its descendants are in $C$. Under the global Markov property, d-separation in the graph corresponds exactly to conditional independence in the distribution: $A \perp\!\!\!\perp B \mid C$ if and only if $A$ and $B$ are d-separated by $C$ in $G$. Two DAGs are Markov equivalent if and only if they have the same skeleton (underlying undirected graph) and the same set of v-structures (colliders). See \citet[Chap.~1]{handbook} for further details.
 
-Two fundamental challenges arise when learning causal structure from observational data. First, multiple DAGs can be statistically indistinguishable because they encode the same set of conditional independence constraints. For instance, the two DAGs with two nodes and one edge (so, $1 \to 2$ and $1 \leftarrow 2$) are in the same Markov equivalence class, and cannot be distinguished empirically without imposing further assumptions on the model. This motivates the need for additional identifying assumptions, such as the non-Gaussianity constraints exploited in LiNGAM models. To illustrate, consider a two-node graph: under Gaussianity, the models $X_2 = \lambda X_1 + \varepsilon_2$ (causal direction $1 \to 2$) and $X_1 = \tilde{\lambda} X_2 + \tilde{\varepsilon}_1$ (direction $2 \to 1$) can be statistically indistinguishable. However, with non-Gaussian noise, third-order cumulants break this symmetry. For the direction $1 \to 2$, we have
+Two fundamental challenges arise when learning causal structure from observational data. First, multiple DAGs can be statistically indistinguishable because they encode the same set of conditional independence constraints. For instance, the two DAGs with two nodes and one edge (so, $1 \to 2$ and $1 \leftarrow 2$) are in the same Markov equivalence class, and cannot be distinguished empirically without imposing further assumptions on the model. This motivates the need for additional identifying assumptions, such as the non-Gaussianity constraints exploited in LiNGAM models. To illustrate, consider a two-node graph: under Gaussianity, the models $X_2 = \lambda X_1 + \varepsilon_2$ (causal direction $1 \to 2$) and $X_1 = \tilde{\lambda} X_2 + \tilde{\varepsilon}_1$ (direction $2 \to 1$) can be statistically indistinguishable. However, with non-Gaussian noise, third-order cumulants break this symmetry (the $k$th-order cumulant tensor $\mathcal{C}^{(k)}$ is defined formally in Definition~\ref{def:cumulant_tensor}). For the direction $1 \to 2$, we have
 \[
 \frac{\Sigma_{1,2}}{\Sigma_{1,1}} = \frac{\mathcal{C}^{(3)}_{1,1,2}}{\mathcal{C}^{(3)}_{1,1,1}} = \lambda,
 \]
@@ -295,7 +295,9 @@ Cumulants are alternative representations of moments of a distribution \citep{co
 
 \begin{definition}[Cumulant tensor]
 \label{def:cumulant_tensor}
+\begin{sloppypar}
 The $k$th cumulant tensor of a random vector $(X_1, \ldots, X_p)$ is the $k$-way tensor in $\mathbb{R}^{p \times \cdots \times p}$ whose entry in position $(i_1, \ldots, i_k)$ is the joint cumulant
+\end{sloppypar}
 \[
 \cum(X_{i_1}, \ldots, X_{i_k}) := \sum_{(A_1, \ldots, A_L)} (-1)^{L-1} (L-1)! \mathbb{E}\left[\prod_{j \in A_1} X_j\right] \cdots \mathbb{E}\left[\prod_{j \in A_L} X_j\right],
 \]
@@ -447,6 +449,23 @@ For general graphs, the algebraic relations among the cumulants may be far more 
 Since there is at most one directed path between any two nodes of a polytree $G$, there is at most one simple trek between any set of nodes $i_1,\dots,i_k$. The simple multi-trek rule then reduces to $C^{(k)}_{i_1,\dots,i_k}(G)=\lambda^{S}\mathcal{C}^{(k)}_{\ttop(S)}$ for a trek between nodes with $S$ being the unique simple trek; denote the top of the simple trek between $i_1,\dots,i_k$, if it exists by $\ttop(i_1,\dots,i_k)$. Also, $C^{(k)}_{i_1,\dots,i_k}(G)=0$ if there is no $k$-trek between the nodes.
 
 For any two vertices $i\not=j$, let $c^{(i,j),k}_m$ denote the $k$th order cumulant $\mathcal{C}^{(k)}_{{i\dots i},{j\dots j}}(G)$, where the first $m$ indices are equal to $i$ and the remaining $k-m$ equal $j$.
+
+\begin{remark}[Cumulant notation summary]
+\label{rem:notation}
+For convenience, we collect the cumulant notations used throughout this thesis:
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Notation & Meaning \\
+\midrule
+$\cum(X_{i_1},\ldots,X_{i_k})$ & Joint cumulant of $X_{i_1},\ldots,X_{i_k}$ (Definition~\ref{def:cumulant_tensor}) \\
+$\mathcal{C}^{(k)}_{i_1,\ldots,i_k}$ & Entry $(i_1,\ldots,i_k)$ of the $k$th-order cumulant tensor of $X$ \\
+$\mathcal{C}^{(k)}_i$ & Diagonal entry $\mathcal{C}^{(k)}_{i,\ldots,i}$ (Corollary~\ref{cor:simple_trek_2}) \\
+$c^{(i,j),k}_m$ & Mixed cumulant $\mathcal{C}^{(k)}_{\underbrace{i,\ldots,i}_{m},\underbrace{j,\ldots,j}_{k-m}}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{remark}
 % ---------- Section 4 : matrix definition (exact Prop. 2.10) ----------
 % For i ≠ j observed and an integer K ≥ 3
 \newcommand{\cumedge}[3]{c_{#1,#2#3}}  % usage: \cumedge{e}{k}{m}
@@ -460,7 +479,9 @@ We now specialize the general LiNGAM framework to the polytree setting with late
 Let $G=(V,E)$ be a DAG whose underlying undirected graph is a tree. Partition $V=O\cup L$ into observed and latent vertices. The pair $(G,O)$ is a \emph{minimal latent polytree} if every $\ell\in L$ has out-degree at least~$2$.
 \end{definition}
 
-The minimality condition ensures that no latent variable is redundant—removing any latent variable would disconnect the observed variables or change the conditional independence structure among them. This constraint is essential for identifiability, as latent nodes with out-degree 1 cannot be distinguished from direct edges between observed variables. To see why, consider a latent variable $\ell$ with parent $X_j$ and single child $X_i$. The path $X_j \to \ell \to X_i$ induces the same conditional independence relationships among observed variables as the direct edge $X_j \to X_i$, rendering the latent node $\ell$ unidentifiable from observational data alone. Even in the LiNGAM setting with non-Gaussian noise, this equivalence persists at the level of observed variables. Specifically, the model with latent variable
+The minimality condition ensures that no latent variable is redundant—removing any latent variable would disconnect the observed variables or change the conditional independence structure among them. This constraint is essential for identifiability: any latent node with out-degree 1 can be absorbed into a rescaled edge weight and a modified noise term on its single child, leaving the joint distribution of all observed variables unchanged. The following example illustrates the general mechanism.
+
+Consider, as an illustration, a latent variable $\ell$ with parent $X_j$ and single child $X_i$. The path $X_j \to \ell \to X_i$ induces the same conditional independence relationships among observed variables as the direct edge $X_j \to X_i$, rendering the latent node $\ell$ unidentifiable from observational data alone. Even in the LiNGAM setting with non-Gaussian noise, this equivalence persists at the level of observed variables. Specifically, the model with latent variable
 \begin{align*}
 X_j &= \varepsilon_j, \\
 \ell &= a_1 X_j + \varepsilon_\ell, \\
@@ -471,7 +492,7 @@ is observationally equivalent to the direct edge model
 X_j &= \varepsilon_j, \\
 X_i &= a_2 a_1 X_j + (a_2 \varepsilon_\ell + \varepsilon_i),
 \end{align*}
-where the composite noise term $\tilde{\varepsilon}_i := a_2 \varepsilon_\ell + \varepsilon_i$ is non-Gaussian whenever either $\varepsilon_\ell$ or $\varepsilon_i$ is non-Gaussian. Thus, both models induce identical joint distributions over the observed variables $(X_j, X_i)$, making it impossible to detect the presence of $\ell$ from observed data. This fundamental limitation motivates restricting attention to latent structures where each latent variable has at least two children, ensuring structural identifiability\citep[cf.][]{etesami:kiyavash:coleman:2016}.
+where the composite noise term $\tilde{\varepsilon}_i := a_2 \varepsilon_\ell + \varepsilon_i$ is non-Gaussian whenever either $\varepsilon_\ell$ or $\varepsilon_i$ is non-Gaussian. Thus, both models induce identical joint distributions over the observed variables $(X_j, X_i)$. Since $\ell$ is entirely absorbed into the noise of $X_i$, no cumulant of any order computed from the observed variables can detect its presence. The same absorption argument applies to any degree-1 latent node regardless of how many parents it has or where it sits in the graph: its contribution always collapses into a rescaled coefficient and a modified noise distribution on its unique child. For the formal general result we refer to \citet{etesami:kiyavash:coleman:2016}; the example above serves only as illustration. This fundamental limitation motivates restricting attention to latent structures where each latent variable has at least two children.
 
 \begin{definition}[Latent--LiNGAM polytree model]\label{def:latent_lingam_model}
 A random vector $X\in\mathbb R^{|V|}$ follows the latent--LiNGAM polytree model on $(G,O)$ if:
@@ -538,7 +559,7 @@ Motivated by the rank conditions in \citet[Prop.~2.10]{tramontano:monod:drton:20
 \end{cases}
 \end{equation}
 \noindent
-where $\Sigma$ is the covariance matrix, and $\mathcal{C}^{(3)}$ is the third-order cumulant tensor.
+where $\Sigma$ is the covariance matrix, $\rho_{i,j} = \text{Corr}[X_i, X_j]$ is the Pearson correlation, and $\mathcal{C}^{(3)}$ is the third-order cumulant tensor.
 
 \end{definition}
 
@@ -568,8 +589,7 @@ The structural parameters $(\Lambda,\,\sigma^2,\,\kappa)$ of the
 latent-LiNGAM polytree model are called \emph{generic} if they do not
 satisfy any non-trivial polynomial identity in the edge weights, noise
 variances, and noise third cumulants.  Equivalently, the parameters are
-generic if they lie outside a finite union of proper algebraic
-hypersurfaces in the parameter space
+generic if they lie outside a proper algebraic subset of the parameter space
 \[
   \mathbb{R}^{|E|}
   \times\mathbb{R}_{>0}^{|V|}
@@ -594,35 +614,34 @@ linear and non-constant in the noise third cumulant $\kappa_i$: it can
 hold for at most one value of $\kappa_i$, not for all values.
 
 \medskip\noindent
-\textbf{Algebraic hypersurface.}
-An \emph{algebraic hypersurface} in $\mathbb{R}^{n}$ is the zero set
+\textbf{Proper algebraic subset.}
+A \emph{proper algebraic subset} of $\mathbb{R}^{n}$ is the zero set
 \[
   \mathcal{V}(p) := \{x \in \mathbb{R}^{n} : p(x) = 0\}
 \]
-of a single non-trivial polynomial $p$.  Because $p$ is a real-analytic
-function that is nonzero on some open set, $\mathcal{V}(p)$ has Lebesgue
-measure zero in $\mathbb{R}^n$ (by the analytic implicit function theorem).
-A \emph{proper} hypersurface is one that is a strict subset of the
-ambient space, i.e.\ $\mathcal{V}(p) \subsetneq \mathbb{R}^{n}$.
-Geometrically, a hypersurface is a ``thin'' codimension-one surface: it
-has one fewer dimension than the ambient space and cannot contain any
-open set.
+of a single non-trivial polynomial $p$, i.e.\ $\mathcal{V}(p) \subsetneq \mathbb{R}^{n}$.
+Note that if finitely many polynomials $p_1, \ldots, p_k$ each define a
+hypersurface, their union is captured by the single product polynomial:
+$\mathcal{V}(p_1) \cup \cdots \cup \mathcal{V}(p_k) = \mathcal{V}(p_1 \cdots p_k)$.
+Thus a finite union of hypersurfaces is itself a proper algebraic subset,
+and there is no need to treat unions separately.
 
 \medskip\noindent
 \textbf{Why the generic set has full measure.}
-A finite union of measure-zero sets has measure zero, so the
-\emph{non-generic} parameters---forming a finite union of proper algebraic
-hypersurfaces---occupy a set of Lebesgue measure zero.  The complementary
-\emph{generic} set therefore has full measure.  In particular, if the
-parameters $(\Lambda,\sigma^{2},\kappa)$ are drawn from any absolutely
-continuous distribution (e.g.\ uniform on a bounded domain), the drawn
-configuration is generic with probability one.  Non-generic configurations
-correspond to exact algebraic coincidences among structural coefficients
-and noise cumulants that would be destroyed by an arbitrarily small
-perturbation.  This style of genericity argument is standard in algebraic
-statistics \citep{drton:strumfeld:2009}; for the specific algebraic
-varieties arising from third-order cumulants of linear non-Gaussian
-graphical models, see \citet{amendola:drton:2021}.
+Because $p$ is a real-analytic function that is nonzero on some open set,
+$\mathcal{V}(p)$ has Lebesgue measure zero in $\mathbb{R}^n$ (by the
+analytic implicit function theorem).  The \emph{non-generic} parameters
+therefore occupy a set of Lebesgue measure zero, and the complementary
+\emph{generic} set has full measure.  In particular, if the parameters
+$(\Lambda,\sigma^{2},\kappa)$ are drawn from any absolutely continuous
+distribution (e.g.\ uniform on a bounded domain), the drawn configuration
+is generic with probability one.  Non-generic configurations correspond to
+exact algebraic coincidences among structural coefficients and noise
+cumulants that would be destroyed by an arbitrarily small perturbation.
+This style of genericity argument is standard in algebraic statistics
+\citep{drton:strumfeld:2009}; for the specific algebraic varieties arising
+from third-order cumulants of linear non-Gaussian graphical models, see
+\citet{amendola:drton:2021}.
 \end{remark}
 
 \begin{proposition}[Axioms]\label{prop:axioms}
@@ -1280,7 +1299,11 @@ discrepancy measure from Definition~\ref{def:discrepancy}. The key
 modification lies in verifying that our measure satisfies the four axioms of
 Definition~\ref{def:discrepancy_paper1}, which we established in
 Proposition~\ref{prop:axioms} under the \emph{generic parameters} assumption
-(Definition~\ref{def:generic}).  Consequently, Theorem~\ref{thm:identifiability}
+(Definition~\ref{def:generic}). Since the Separation-Tree-Merger algorithms of
+\citet{etesami:kiyavash:coleman:2016} take only the discrepancy matrix as input
+and their correctness depends solely on the four axioms being satisfied, the
+algorithms apply without modification to our setting; only the discrepancy
+measure itself has been replaced.  Consequently, Theorem~\ref{thm:identifiability}
 guarantees recovery of the minimal latent polytree whenever the structural
 parameters $(\Lambda,\sigma^{2},\kappa)$ are generic---a condition that holds
 with probability one under any absolutely continuous parameter distribution.
@@ -1325,7 +1348,7 @@ reliable structure recovery across a range of polytree topologies.
 \section{Experiments}
 \label{sec:experiments}
 
-We evaluate our cumulant-based discrepancy approach through comprehensive experiments on synthetic polytree data. Our experimental framework tests the theoretical predictions in controlled settings using population-level discrepancy matrices, providing insights into the fundamental performance of our method before considering finite-sample effects.
+We evaluate our cumulant-based discrepancy approach through comprehensive experiments on synthetic polytree data. The experimental design proceeds in two stages. We begin with \emph{population-level} experiments, in which the discrepancy matrix $\Gamma_O$ is computed from the true joint distribution rather than estimated from data. This isolates algorithmic performance from estimation noise and directly tests the theoretical guarantees of Theorem~\ref{thm:identifiability}. We then move to \emph{finite-sample} experiments, in which $\Gamma_O$ is replaced by the sample estimator $\hat\Gamma_O$, introducing statistical uncertainty and allowing us to assess practical sample complexity across different polytree topologies.
 
 \subsection{Random Polytree Generation via Prüfer Sequences}
 
@@ -3245,10 +3268,13 @@ All experiments are implemented in Python with modular components enabling exten
 \item \textbf{Random polytree baseline}: \texttt{random\_polytrees\_pruefer.py} generates uniform random trees via Prüfer sequences
 \item \textbf{Discrepancy computation}: \texttt{polytree\_discrepancy.py} computes population and finite-sample discrepancy matrices
 \item \textbf{Structure recovery}: \texttt{latent\_polytree\_truepoly.py} implements the Separation-Tree-Merger algorithm
-\item \textbf{Evaluation pipelines}: \texttt{chain\_finite\_sample\_evaluation.py},
+\item \textbf{Evaluation pipelines}:
+  \begin{sloppypar}
+  \texttt{chain\_finite\_sample\_evaluation.py},
   \texttt{balanced\_finite\_sample\_evaluation.py},
   \texttt{star\_finite\_sample\_evaluation.py}
   orchestrate topology-specific experiments
+  \end{sloppypar}
 \end{itemize}
 
 All experiments use fixed random seeds ensuring exact reproducibility. The complete codebase, including experiment configurations and analysis scripts, is available in the \texttt{causalLatentPolytree} repository.
