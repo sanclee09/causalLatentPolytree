@@ -3339,6 +3339,20 @@ differences across topologies---and the qualitatively different failure modes---
 demonstrate that evaluation on random graph ensembles is insufficient for diagnosing
 algorithm-specific bottlenecks.
 
+\paragraph{Multi-latent extension.}
+Extending the balanced experiments to $k \in \{2,3\}$ latent nodes
+(Section~\ref{subsec:multi_latent}) confirms that the algorithm's convergence
+behaviour is largely preserved for $n \geq 10$.  The main new findings are: (i)
+$n=8$, $k=3$ is structurally degenerate---5 observed nodes are insufficient to
+resolve 3 latent sources, and F1 degrades at large sample sizes; (ii) the
+sample-complexity cliff for $n=20$ occurs at nearly the same position ($10^5$--$10^6$)
+for both $k=2$ and $k=3$, suggesting the cliff is driven by $n$ rather than $k$; and
+(iii) F1 plateaus that persist even at $2 \times 10^7$ samples are not algorithmic
+artefacts---they reflect topologies where nodes sharing a unique latent ancestor
+through an all-observed sub-chain have zero population discrepancy, making edge
+orientations irresolvable regardless of sample size.  This constitutes a new class of
+non-identifiability beyond the scope of the near-tie fix.
+
 \subsection{Limitations and Future Directions}
 
 \paragraph{Algorithmic contributions and remaining limitations.}
@@ -3373,7 +3387,7 @@ refinements include:
 The current evaluation covers:
 \begin{itemize}
 \item Single latent root configurations ($k=1$) for chain and star experiments; $k \in \{1,2,3\}$ for balanced experiments
-\item Node counts up to $n=10$ for balanced, $n=30$ for chains and stars
+\item Node counts up to $n=20$ for balanced ($k \in \{2,3\}$ experiments), $n=10$ for balanced ($k=1$), $n=30$ for chains and stars
 \item Gamma noise distributions with unit variance
 \item Strong edge weights ($|\lambda_{ij}| \geq 0.8$)
 \item Pure topologies (chains, balanced, stars)
@@ -3416,6 +3430,10 @@ and mixed strong/weak edges.
 \item Identifiability conditions distinguishing stars from hierarchies
 \item Statistical optimality of cumulant-based discrepancy measures
 \item Fundamental limits of symmetry-based structure learning
+\item Characterisation of which topology classes admit zero-population-$\gamma$ pairs
+  (nodes sharing a latent ancestor through an all-observed sub-chain): a complete
+  description would identify exactly which edge orientations are irresolvable by any
+  cumulant discrepancy measure, and whether higher-order cumulants could break the ambiguity
 \end{itemize}
 
 \subsection{Implementation and Reproducibility}
@@ -3489,8 +3507,10 @@ For practitioners, the revised guidelines are:
 with $n \leq 10$ nodes at $n_{\text{samples}} \geq 10^7$ with strong edge weights
 \item Chain structures require similar sample budgets for small $n$ but scale less
 favourably beyond $n=10$ due to endpoint conditioning
-\item The immediate next experimental step---multiple latent nodes ($k=2$) in balanced
-and star structures---is well-motivated by the current results
+\item Balanced topology experiments with $k \in \{2,3\}$ latent nodes confirm that
+convergence behaviour is largely preserved for $n \geq 10$; the F1 ceiling at large
+sample sizes reveals a structural non-identifiability (zero-population-$\gamma$ pairs)
+that remains open
 \end{itemize}
 
 The topology-stratified evaluation framework introduced here---systematically testing
@@ -3506,8 +3526,9 @@ choosing $\rho$ as a function of $n$, the noise level, and the topology class wo
 provide both theoretical insight and practical utility for future applications of
 cumulant-based causal discovery.  Other open directions include the rank constraint
 methods of \citet{cai:etal:2024:rank} for cases where symmetry-based approaches remain
-insufficient, and systematic evaluation of multiple latent nodes ($k \geq 2$) as the
-immediate next experimental frontier.
+insufficient, characterisation of which topology classes produce irresolvable zero-population-$\gamma$
+pairs, and extension of the multi-latent evaluation to flat two-root branching structures
+beyond the balanced class.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \bibliography{references}
