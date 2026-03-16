@@ -3275,6 +3275,11 @@ All experiments are implemented in Python with modular components enabling exten
   \texttt{star\_finite\_sample\_evaluation.py}
   orchestrate topology-specific experiments
   \end{sloppypar}
+\item \textbf{Unified experiment runner}: \texttt{run\_experiment.py} provides a single entry point for all topology experiments, reading parameters from \texttt{experiment\_config.yaml}. Each run is invoked as
+\begin{verbatim}
+python run_experiment.py <topology>
+\end{verbatim}
+where \texttt{<topology>} is one of \texttt{chain}, \texttt{balanced}, \texttt{star}, \texttt{balanced\_k2}, or \texttt{balanced\_k3}. The runner creates a timestamped output directory under \texttt{experiments/} containing the full console log, a config snapshot, per-trial F1 scores in CSV format, and convergence plots in PDF and PNG.
 \end{itemize}
 
 All experiments use fixed random seeds ensuring exact reproducibility. The complete codebase, including experiment configurations and analysis scripts, is available at \url{https://github.com/sanclee09/causalLatentPolytree}.
