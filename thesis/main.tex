@@ -79,6 +79,7 @@
 \usepackage{subfig}
 \usepackage{comment}
 \usepackage{booktabs} % commands to create good-looking tables
+\usepackage{placeins}  % \FloatBarrier to keep floats within sections
 \usetikzlibrary{arrows.meta}
 \usepackage{algorithm}
 \usepackage[noend]{algpseudocode}
@@ -3247,6 +3248,7 @@ decreases from $k=2$ to $k=3$, most sharply at $n=8$ ($0.74 \to 0.25$) and $n=20
 suggesting that for medium-sized graphs the algorithm's identifiability is robust to
 one additional latent node when the observed count (7 nodes) is sufficient.
 
+\FloatBarrier
 \subsection{Summary of Topology-Stratified Findings}
 
 \begin{sloppypar}
