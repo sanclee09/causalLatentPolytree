@@ -3306,8 +3306,12 @@ mis-grouping.
 \paragraph{Sample size requirements (revised).}
 
 \begin{itemize}
-\item \textbf{Balanced, $n \leq 6$}: $n_{\text{samples}} \geq 10^7$ for perfect recovery
-\item \textbf{Balanced, $n \in \{8, 10\}$}: $n_{\text{samples}} \geq 10^7$ for $F1 > 0.85$
+\item \textbf{Balanced $k=1$, $n \leq 6$}: $n_{\text{samples}} \geq 10^7$ for perfect recovery
+\item \textbf{Balanced $k=1$, $n \in \{8, 10\}$}: $n_{\text{samples}} \geq 10^7$ for $F1 > 0.85$
+\item \textbf{Balanced $k=2$, $n \in \{8, 10\}$}: $n_{\text{samples}} \geq 10^7$ for $F1 \geq 0.74$; F1 ceiling below 1.0 for some trials due to zero-population-$\gamma$ pairs
+\item \textbf{Balanced $k=2$, $n=20$}: sharp cliff at ${\sim}10^6$; $F1 \approx 0.88$ at $2 \times 10^7$
+\item \textbf{Balanced $k=3$, $n=8$}: structurally degenerate---F1 peaks at 0.47 then degrades; not reliably learnable
+\item \textbf{Balanced $k=3$, $n \in \{10, 20\}$}: $n_{\text{samples}} \geq 10^6$ for $F1 > 0.70$; cliff for $n=20$ at ${\sim}10^5$
 \item \textbf{Stars, $n \leq 6$}: $n_{\text{samples}} \approx 10^7$ for perfect recovery
 \item \textbf{Stars, $n \in \{10, 20\}$}: $n_{\text{samples}} \geq 10^6$ for $F1 > 0.75$
 \item \textbf{Stars, $n = 30$}: $F1 \approx 0.40$ at $2 \times 10^7$; limited by $O(n^2)$ pair-coverage scaling
