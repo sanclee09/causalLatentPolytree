@@ -3184,82 +3184,6 @@ differences across topologies---and the qualitatively different failure modes---
 demonstrate that evaluation on random graph ensembles is insufficient for diagnosing
 algorithm-specific bottlenecks.
 
-\subsection{Effect of Latent Node Count on Sample Complexity}
-\label{subsec:multi_latent}
-
-The experiments described above fix the number of latent nodes at $k=1$.  To assess how
-additional latent structure affects sample complexity and identifiability, we run the balanced
-topology experiments for $k \in \{2, 3\}$ latent nodes and $n \in \{8, 10, 20\}$ total nodes,
-using the same protocol (10 trials, fixed seeds, sample sizes $10^2$--$2\times 10^7$).
-
-\paragraph{Results.}
-
-\begin{table}[h]
-\centering
-\caption{Mean F1 score (and perfect recovery rate) for balanced topology, $k=2$ latent nodes.}
-\label{tab:balanced_k2}
-\begin{tabular}{lrrrrrrr}
-\hline
-$n$ & $10^2$ & $10^3$ & $10^4$ & $10^5$ & $10^6$ & $10^7$ & $2\times10^7$ \\
-\hline
-8  & 0.32 & 0.30 & 0.41 & 0.63 & 0.68 & 0.69 & 0.74 (40\%) \\
-10 & 0.16 & 0.17 & 0.28 & 0.46 & 0.60 & 0.77 & 0.81 (50\%) \\
-20 & 0.08 & 0.04 & 0.10 & 0.31 & 0.69 & 0.86 & 0.88 (70\%) \\
-\hline
-\end{tabular}
-\end{table}
-
-\begin{table}[h]
-\centering
-\caption{Mean F1 score (and perfect recovery rate) for balanced topology, $k=3$ latent nodes.}
-\label{tab:balanced_k3}
-\begin{tabular}{lrrrrrrr}
-\hline
-$n$ & $10^2$ & $10^3$ & $10^4$ & $10^5$ & $10^6$ & $10^7$ & $2\times10^7$ \\
-\hline
-8  & 0.24 & 0.34 & 0.32 & 0.47 & 0.35 & 0.22 & 0.25 (0\%)  \\
-10 & 0.24 & 0.27 & 0.35 & 0.68 & 0.75 & 0.86 & 0.78 (50\%) \\
-20 & 0.07 & 0.05 & 0.06 & 0.33 & 0.70 & 0.71 & 0.80 (40\%) \\
-\hline
-\end{tabular}
-\end{table}
-
-\paragraph{Main findings.}
-
-\textbf{Larger $n$ benefits from more constraints.}  For $k=2$, $n=20$ achieves 70\% perfect
-recovery at $2\times 10^7$ samples, outperforming $n=8$ (40\%) and $n=10$ (50\%).  The 18 observed
-nodes produce an $18\times 18$ discrepancy matrix with substantially more nonzero entries than the
-$6\times 6$ matrix for $n=8$, giving the algorithm more constraints once sufficient data is
-available.  This pattern persists for $k=3$.
-
-\textbf{$n=8$, $k=3$ is effectively unworkable.}  With only 5 observed nodes and 3 latent nodes,
-the discrepancy matrix is too sparse to resolve 3 latent sources.  F1 never exceeds 0.47, perfect
-recovery is 0\% at all sample sizes, and F1 \emph{decreases} at large samples (0.47 at $10^5$
-to 0.25 at $2\times 10^7$), indicating that the algorithm converges more confidently to an
-incorrect structure as data grows.  The minimum viable graph size for $k=3$ is $n \geq 10$.
-
-\textbf{Sample complexity cliff around $10^5$--$10^6$ for $n=20$.}  Both $k=2$ and $k=3$ show a
-sharp jump for $n=20$: F1 more than doubles from $10^5$ to $10^6$ samples ($0.31 \to 0.69$ for
-$k=2$; $0.33 \to 0.70$ for $k=3$).  The cliff position is similar for both values of $k$,
-suggesting that at large $n$ the dominant factor is the observed node count rather than the number
-of latent nodes.
-
-\textbf{Identifiability ceiling below 1.0.}  Perfect recovery never reaches 100\% for any
-$(n, k)$ combination.  Trial-level inspection reveals topologies where F1 plateaus at a fixed
-value regardless of sample size---a signature of fundamental non-identifiability in the discrepancy
-measure.  Specifically, pairs of observed nodes sharing a common latent ancestor and lying on the
-same all-observed sub-path can have $\gamma(v_i, v_j) = 0$ at the population level: both
-orientations of the edge between them produce the same discrepancy matrix, so the algorithm cannot
-distinguish them regardless of sample size.  The perfect recovery ceiling decreases with $k$: for
-$n=20$, it falls from 70\% ($k=2$) to 40\% ($k=3$), as richer latent structure introduces more
-such ambiguous pairs.
-
-\textbf{Convergence rate appears broadly robust to $k$ for $n \geq 10$.}  Comparing $k=2$ and
-$k=3$ at $n=10$ and $n=20$, the F1 trajectories are similar in shape: rapid gains between $10^5$
-and $10^6$ samples, followed by slower improvement.  The primary effect of increasing $k$ is a
-reduction in the identifiability ceiling rather than a change in the rate at which F1 grows with
-sample size.
-
 \subsection{Limitations and Future Directions}
 
 \paragraph{Algorithmic contributions and remaining limitations.}
@@ -3293,8 +3217,8 @@ refinements include:
 \paragraph{Scope of experimental validation.}
 The current evaluation covers:
 \begin{itemize}
-\item Single latent root configurations ($k=1$) for chains and stars; $k \in \{1,2,3\}$ for balanced structures (Section~\ref{subsec:multi_latent})
-\item Node counts up to $n=20$ for balanced ($k \geq 2$), $n=10$ for balanced ($k=1$), $n=30$ for chains and stars
+\item Single latent root configurations ($k=1$) for all topology experiments
+\item Node counts up to $n=10$ for balanced, $n=30$ for chains and stars
 \item Gamma noise distributions with unit variance
 \item Strong edge weights ($|\lambda_{ij}| \geq 0.8$)
 \item Pure topologies (chains, balanced, stars)
@@ -3302,9 +3226,12 @@ The current evaluation covers:
 
 \noindent Future work should systematically explore:
 \begin{itemize}
-\item \textbf{Multiple latent nodes ($k \geq 2$)}: Balanced topology experiments for
-$k \in \{2, 3\}$ are reported in Section~\ref{subsec:multi_latent}.  Extending to star
-and chain topologies with $k \geq 2$, and to larger $k$, remains future work.
+\item \textbf{Multiple latent nodes ($k \geq 2$)}: The substantial improvement in
+balanced and star performance with $k=1$ strongly motivates extending to $k=2$.  For
+balanced structures, $k=2$ latent nodes would test whether the algorithm can distinguish
+two separate latent branching points.  For stars with $k=2$ (a secondary latent hub),
+the algorithm must correctly partition observed leaves between the two hubs.
+These experiments are the immediate next step.
 \item \textbf{Adaptive near-tie tolerance}: Scaling $\rho$ with $n$ or with the
 estimated estimation noise could improve performance for large stars and resolve the
 $n=8$ bimodal anomaly.
