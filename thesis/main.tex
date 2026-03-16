@@ -3217,7 +3217,7 @@ refinements include:
 \paragraph{Scope of experimental validation.}
 The current evaluation covers:
 \begin{itemize}
-\item Single latent root configurations ($k=1$) for all topology experiments
+\item Single latent root configurations ($k=1$) for chain and star experiments; $k \in \{1,2,3\}$ for balanced experiments
 \item Node counts up to $n=10$ for balanced, $n=30$ for chains and stars
 \item Gamma noise distributions with unit variance
 \item Strong edge weights ($|\lambda_{ij}| \geq 0.8$)
@@ -3226,12 +3226,16 @@ The current evaluation covers:
 
 \noindent Future work should systematically explore:
 \begin{itemize}
-\item \textbf{Multiple latent nodes ($k \geq 2$)}: The substantial improvement in
-balanced and star performance with $k=1$ strongly motivates extending to $k=2$.  For
-balanced structures, $k=2$ latent nodes would test whether the algorithm can distinguish
-two separate latent branching points.  For stars with $k=2$ (a secondary latent hub),
-the algorithm must correctly partition observed leaves between the two hubs.
-These experiments are the immediate next step.
+\item \textbf{Multiple latent nodes ($k \geq 2$)}: Balanced topology experiments with
+$k \in \{2,3\}$ have been completed (Section~\ref{subsec:multi_latent}), confirming
+that the algorithm's convergence behaviour is largely preserved for $n \geq 10$.
+Chain and star topologies cannot be extended to $k \geq 2$ while preserving minimality:
+any second latent node in a chain would have out-degree~1 (violating Definition~\ref{def:minimal_polytree}),
+and a star is definitionally a single latent center with all observed nodes as direct
+children \citep{etesami:kiyavash:coleman:2016}---adding a second latent hub yields a
+different topology class (flat two-root branching structure) outside the star definition.
+Remaining open questions include the behaviour of the algorithm on flat two-root structures
+and on chains extended with additional branching.
 \item \textbf{Adaptive near-tie tolerance}: Scaling $\rho$ with $n$ or with the
 estimated estimation noise could improve performance for large stars and resolve the
 $n=8$ bimodal anomaly.
