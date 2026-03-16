@@ -51,9 +51,9 @@ non-zero floor caused by the identifiability ceiling (some entries of the discre
 converge to the correct value because they are zero at the population level).
 
 **F1 panel**: The three curves have qualitatively different shapes:
-- n=8 (purple): slow but monotone increase, plateauing around 0.74 from 10^6 onward.
-- n=10 (teal): steeper climb, reaching ~0.81 by 2×10^7.
-- n=20 (yellow): nearly flat until 10^5, then a sharp cliff between 10^5 and 10^6, after which
+- n=8: slow but monotone increase, plateauing around 0.74 from 10^6 onward.
+- n=10: steeper climb, reaching ~0.81 by 2×10^7.
+- n=20: nearly flat until 10^5, then a sharp cliff between 10^5 and 10^6, after which
   it overtakes n=10 and reaches ~0.88. This is the most visually striking feature of the k=2 plot
   — the large graph is worst at small samples but best at large samples.
 
@@ -74,17 +74,17 @@ worst F1 — a clear sign that low estimation error does not translate to correc
 when the population gamma matrix itself has many zero entries.
 
 **F1 panel**: Three qualitatively distinct behaviours:
-- n=8 (purple): peaks at ~0.47 around 10^5 then degrades toward 0.25 at 2×10^7 — the unique
+- n=8: peaks at ~0.47 around 10^5 then degrades toward 0.25 at 2×10^7 — the unique
   failure mode where the algorithm converges more confidently to a wrong structure with more data.
-- n=10 (teal): climbs to ~0.86 at 10^7 then drops slightly to 0.78 at 2×10^7 (Observation 5).
-- n=20 (yellow): flat near zero until 10^4, sharp cliff between 10^4 and 10^5, then steady
+- n=10: climbs to ~0.86 at 10^7 then drops slightly to 0.78 at 2×10^7 (Observation 5).
+- n=20: flat near zero until 10^4, sharp cliff between 10^4 and 10^5, then steady
   improvement to ~0.80 at 2×10^7.
 
 The contrast between n=8's degrading curve and n=10/20's improving curves is the most important
 visual in the k=3 plot — it directly illustrates that n=8 is a structurally degenerate case.
 
 **Suggested caption**: *Convergence of discrepancy estimation error and structure recovery F1 for
-balanced topology with k=3 latent nodes. The n=8 F1 curve (purple) degrades at large sample sizes,
+balanced topology with k=3 latent nodes. The n=8 F1 curve degrades at large sample sizes,
 reflecting structural non-identifiability when only 5 observed nodes are available for 3 latent
 sources. The n=20 curve exhibits a sharp sample complexity cliff between 10^4 and 10^5 samples.*
 
