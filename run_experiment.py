@@ -84,9 +84,12 @@ def make_generator(topology: str, n_latent: int):
     import topology_stratified_evaluation as tse
     importlib.reload(tse)
 
+    # Strip variant suffixes (_k2, _k3) to get the base topology name
+    base_topology = topology.split("_")[0]
+
     def _generator(n, seed, **kwargs):
         return tse.create_polytree_from_topology(
-            topology_type=topology,
+            topology_type=base_topology,
             n=n,
             n_latent=n_latent,
             seed=seed,
@@ -173,7 +176,7 @@ def main() -> None:
     )
     parser.add_argument(
         "topology",
-        choices=["chain", "balanced", "star"],
+        choices=["chain", "balanced", "star", "balanced_k2", "balanced_k3"],
         help="Topology to evaluate.",
     )
     parser.add_argument(

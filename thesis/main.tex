@@ -476,7 +476,7 @@ $c^{(i,j),k}_m$ & Mixed cumulant $\mathcal{C}^{(k)}_{\underbrace{i,\ldots,i}_{m}
 We now specialize the general LiNGAM framework to the polytree setting with latent variables. This restriction provides significant computational advantages while still capturing important classes of causal relationships.
 
 \begin{definition}[Minimal latent polytree]\label{def:minimal_polytree}
-Let $G=(V,E)$ be a DAG whose underlying undirected graph is a tree. Partition $V=O\cup L$ into observed and latent vertices. The pair $(G,O)$ is a \emph{minimal latent polytree} if every $\ell\in L$ has out-degree at least~$2$.
+Let $G=(V,E)$ be a DAG whose underlying undirected graph is a tree. Partition $V=O\cup L$ into observed and latent vertices. The pair $(G,O)$ is a \emph{minimal latent polytree} if every $\ell\in L$ has out-degree at least~$2$. Equivalently, $(G,O)$ is minimal if it has no \emph{redundant} latent nodes, where a latent node $\ell$ is redundant if the subgraph obtained by removing $\ell$ and its incident edges remains a forest on the remaining nodes \citep{etesami:kiyavash:coleman:2016}.
 \end{definition}
 
 The minimality condition ensures that no latent variable is redundant—removing any latent variable would disconnect the observed variables or change the conditional independence structure among them. This constraint is essential for identifiability: any latent node with out-degree 1 can be absorbed into a rescaled edge weight and a modified noise term on its single child, leaving the joint distribution of all observed variables unchanged. The following example illustrates the general mechanism.

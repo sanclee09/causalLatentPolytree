@@ -30,6 +30,20 @@ topologies:
     base_seed:    42
     sample_sizes: [100, 1000, 10000, 100000, 1000000, 10000000, 20000000]
 
+  balanced_k2:
+    n_nodes:      [8, 10, 20]
+    n_latent:     2
+    n_trials:     10
+    base_seed:    42
+    sample_sizes: [100, 1000, 10000, 100000, 1000000, 10000000, 20000000]
+
+  balanced_k3:
+    n_nodes:      [8, 10, 20]
+    n_latent:     3
+    n_trials:     10
+    base_seed:    42
+    sample_sizes: [100, 1000, 10000, 100000, 1000000, 10000000, 20000000]
+
   star:
     n_nodes:      [6, 8, 10, 20, 30]
     n_latent:     1

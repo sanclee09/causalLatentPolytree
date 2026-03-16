@@ -257,26 +257,18 @@ def sample_sigmas_kappas(
 # ---------- End-to-end ----------
 def is_minimal_latent_polytree_check(edges_labeled, hidden_nodes):
     """
-    Check if the latent polytree is minimal.
-    A latent node h is redundant if removing it keeps the graph a forest.
-
-    Specifically checks for latent chains: if h has exactly one latent parent
-    and the parent could directly reach all of h's children, then h is redundant.
+    Check if the latent polytree is minimal (Definition 3.1).
+    A latent polytree is minimal iff every latent node has out-degree >= 2.
+    A degree-1 latent node is redundant regardless of whether its parent is
+    latent or observed — it can always be absorbed into its single child's
+    noise term.
     """
-    hidden_set = set(hidden_nodes)
-
-    # Build adjacency
     children_map = defaultdict(set)
-    parent_map = {}
     for u, v in edges_labeled:
         children_map[u].add(v)
-        parent_map[v] = u
 
     for h in hidden_nodes:
-        # Check if this latent has a latent parent
-        if h in parent_map and parent_map[h] in hidden_set:
-            # This is a latent chain: latent_parent → h → children
-            # h is redundant because parent can directly connect to h's children
+        if len(children_map[h]) < 2:
             return False
 
     return True
