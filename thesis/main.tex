@@ -3094,6 +3094,159 @@ for large stars.  The degradation is not caused by the tolerance fix itself---it
 inherent sample-complexity property of pure star structures under any tie-breaking
 scheme that requires simultaneous near-uniformity across all pairs.
 
+\subsection{Effect of Latent Node Count on Sample Complexity}
+\label{subsec:multi_latent}
+
+\paragraph{Motivation.}
+The topology-stratified evaluation above fixes $k=1$ latent node throughout.  The
+question of whether the algorithm's convergence properties extend to richer latent
+structures is best addressed through the balanced topology.  Chain and star topologies
+do not admit valid extensions to $k \geq 2$: any second latent node in a chain would
+have out-degree~1, rendering it redundant and violating Definition~\ref{def:minimal_polytree};
+a star is definitionally a single latent center with all observed nodes as direct
+children \citep{etesami:kiyavash:coleman:2016}, so adding a second latent hub produces
+a different topology class entirely.  Balanced structures, by contrast, have multiple
+branching points, each of which can naturally host a latent node with out-degree $\geq 2$
+while preserving minimality.  The balanced $k \in \{2,3\}$ experiments are therefore
+not one option among many but the structurally motivated next step.
+
+All experiments use the same pipeline as the $k=1$ balanced re-evaluation, with the
+near-tie tolerance fix ($\rho = 0.05$) applied throughout.  Any remaining failures
+therefore reflect finite-sample estimation noise or fundamental structural
+non-identifiability, not the algorithmic artefact addressed in
+Section~\ref{subsubsec:neartie_reeval}.
+
+\paragraph{Results.}
+Tables~\ref{tab:balanced_k2_performance} and~\ref{tab:balanced_k3_performance} report
+mean F1-scores over 10 trials for $n \in \{8, 10, 20\}$ and $k \in \{2, 3\}$
+respectively.
+
+\begin{table}[h]
+\centering
+\caption{Balanced polytree recovery performance with $k=2$ latent nodes.
+F1-scores averaged over 10 independent trials per configuration.
+Edge weights $|\lambda_{ij}| \geq 0.8$; near-tie tolerance $\rho = 0.05$.}
+\label{tab:balanced_k2_performance}
+\begin{tabular}{lrrr}
+\toprule
+$n_{\text{samples}}$ & $n=8$ & $n=10$ & $n=20$ \\
+\midrule
+$10^2$              & 0.32 & 0.16 & 0.08 \\
+$10^3$              & 0.30 & 0.17 & 0.04 \\
+$10^4$              & 0.41 & 0.28 & 0.10 \\
+$10^5$              & 0.63 & 0.46 & 0.31 \\
+$10^6$              & 0.68 & 0.60 & 0.69 \\
+$10^7$              & 0.69 & 0.77 & 0.86 \\
+$2 \times 10^7$     & 0.74 & 0.81 & 0.88 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Balanced polytree recovery performance with $k=3$ latent nodes.
+F1-scores averaged over 10 independent trials per configuration.
+Edge weights $|\lambda_{ij}| \geq 0.8$; near-tie tolerance $\rho = 0.05$.}
+\label{tab:balanced_k3_performance}
+\begin{tabular}{lrrr}
+\toprule
+$n_{\text{samples}}$ & $n=8$ & $n=10$ & $n=20$ \\
+\midrule
+$10^2$              & 0.24 & 0.24 & 0.07 \\
+$10^3$              & 0.34 & 0.27 & 0.05 \\
+$10^4$              & 0.32 & 0.35 & 0.06 \\
+$10^5$              & 0.47 & 0.68 & 0.33 \\
+$10^6$              & 0.35 & 0.75 & 0.70 \\
+$10^7$              & 0.22 & 0.86 & 0.71 \\
+$2 \times 10^7$     & 0.25 & 0.78 & 0.80 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{balanced_k2_polytree_analysis.pdf}
+\caption{Convergence analysis for balanced polytrees with $k=2$ latent nodes
+($n \in \{8, 10, 20\}$).
+\textbf{Top-left/Top-right/Bottom-left}: Maximum, mean, and median discrepancy
+errors (log scale).  All three sizes converge, but $n=20$ starts 2--3 orders of
+magnitude higher at 100 samples and does not stabilise until ${\sim}10^5$--$10^6$.
+Error floors at large sample sizes reflect zero-population-$\gamma$ pairs that are
+structurally irresolvable regardless of sample size.
+\textbf{Bottom-right}: F1-scores as a function of sample size.  $n=8$ improves
+slowly and plateaus around 0.74 from $10^6$ onward.  $n=10$ climbs more steeply
+to ${\sim}0.81$ at $2 \times 10^7$.  $n=20$ is nearly flat until $10^5$, then
+exhibits a sharp sample-complexity cliff between $10^5$ and $10^6$, after which
+it overtakes the smaller sizes and reaches ${\sim}0.88$.}
+\label{fig:balanced_k2_convergence}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{balanced_k3_polytree_analysis.pdf}
+\caption{Convergence analysis for balanced polytrees with $k=3$ latent nodes
+($n \in \{8, 10, 20\}$).
+\textbf{Top-left/Top-right/Bottom-left}: Maximum, mean, and median discrepancy
+errors.  $n=20$ shows a dramatic spike in maximum error between $10^3$ and $10^4$
+(exceeding $10^3$) before collapsing---numerical instability at low
+sample-to-dimension ratios for large sparse graphs.  $n=8$ achieves the lowest
+discrepancy errors overall yet the worst F1, demonstrating that low estimation
+error does not imply correct structure recovery when the population $\Gamma$ matrix
+has many zero entries.
+\textbf{Bottom-right}: F1-scores.  $n=8$ peaks at ${\sim}0.47$ around $10^5$ then
+degrades to 0.25 at $2 \times 10^7$---the algorithm converges more confidently to
+an incorrect structure as data grows.  $n=10$ climbs to ${\sim}0.86$ at $10^7$
+then drops slightly to 0.78 at $2 \times 10^7$.  $n=20$ is flat near zero until
+$10^4$, shows a sharp cliff between $10^4$ and $10^5$, then improves steadily
+to ${\sim}0.80$.}
+\label{fig:balanced_k3_convergence}
+\end{figure}
+
+\paragraph{Key findings.}
+
+\textbf{$n=8$, $k=3$ is structurally degenerate.}  With only 5 observed nodes and
+3 latent nodes, the discrepancy matrix is $5 \times 5$---too sparse to resolve 3
+latent sources reliably.  F1 never exceeds 0.47 and degrades at high sample sizes
+(Figure~\ref{fig:balanced_k3_convergence}, bottom-right), indicating that the
+algorithm converges with increasing confidence to an incorrect structure.  This is a
+structural constraint: with $k$ latent nodes each requiring out-degree $\geq 2$, the
+minimum number of latent-to-observed edges is $2k$, leaving very little room for
+observed-to-observed edges when $n - k$ is small.  For $k=3$, $n \geq 10$ is the
+minimum viable graph size.
+
+\textbf{Larger graphs benefit from more constraints at large sample sizes.}  For
+$k=2$, F1 at $2 \times 10^7$ is highest for $n=20$ (0.88), then $n=10$ (0.81),
+then $n=8$ (0.74).  More observed nodes yield a larger discrepancy matrix with more
+non-zero entries, giving the algorithm additional constraints to work with once the
+sample size is sufficient.  This counteracts the naive expectation that larger graphs
+are always harder.
+
+\textbf{Sharp sample-complexity cliff for $n=20$.}  For both $k=2$ and $k=3$,
+$n=20$ shows a dramatic F1 jump between $10^5$ and $10^6$ samples:
+\begin{itemize}
+  \item $k=2$: $0.31 \; (10^5) \to 0.69 \; (10^6)$
+  \item $k=3$: $0.33 \; (10^5) \to 0.70 \; (10^6)$
+\end{itemize}
+The cliff position is nearly identical for $k=2$ and $k=3$ at $n=20$, suggesting
+that sample complexity for large $n$ is driven more by $n$ than by $k$ in this regime.
+
+\textbf{F1 ceiling from fundamental non-identifiability.}  F1 plateaus between 10M
+and 20M for many $(n,k)$ combinations.  Since the tolerance fix is applied, this is
+not an algorithmic artefact.  It reflects topologies where the algorithm cannot
+identify the full structure even with arbitrarily large data.  Concretely, nodes that
+share a unique latent common ancestor and are connected only through observed nodes
+have zero population $\gamma$ between them.  Both edge orientations within such an
+all-observed sub-chain produce the same population discrepancy matrix, making the
+direction irresolvable regardless of sample size.  This is consistent with
+genericness (Definition~\ref{def:generic}) but reveals a structural ambiguity outside
+the reach of the cumulant discrepancy measure.
+
+\textbf{F1 ceiling decreases with $k$.}  The maximum F1 at $2 \times 10^7$ samples
+decreases from $k=2$ to $k=3$, most sharply at $n=8$ ($0.74 \to 0.25$) and $n=20$
+($0.88 \to 0.80$).  For $n=10$ the ceiling is roughly unchanged ($0.81 \to 0.78$),
+suggesting that for medium-sized graphs the algorithm's identifiability is robust to
+one additional latent node when the observed count (7 nodes) is sufficient.
+
 \subsection{Summary of Topology-Stratified Findings}
 
 \begin{sloppypar}
